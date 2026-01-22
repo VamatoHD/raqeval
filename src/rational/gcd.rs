@@ -58,7 +58,7 @@ pub fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
     u.checked_shl(k).unwrap_or(1)
 }
 
-pub fn gdc_nonzerou128(mut u: NonZeroU128, mut v: NonZeroU128) -> NonZeroU128 {
+pub fn gdc_nonzerou128(u: NonZeroU128, v: NonZeroU128) -> NonZeroU128 {
     match NonZeroU128::new(gcd_u128(u.get(), v.get())) {
         Some(result) => result,
         None => {
