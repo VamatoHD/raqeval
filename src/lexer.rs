@@ -63,6 +63,8 @@ fn parse_string(str: &str) -> Vec<Token> {
 
 fn parse_number(str: &str, index: &mut usize) -> Rational {
     let mut num = None;
+    let mut den = 1;
+    let mut den_mode = false;
 
     while *index < str.len() {
         let char = match str.chars().nth(*index) {
@@ -75,6 +77,14 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
                 //Safety: char is always a number ig
                 char.to_string().parse::<u128>().unwrap()
             }
+            '.' => {
+                if den_mode {
+                    panic!("Unable to parse number: Number has two dots");
+                };
+                den_mode = true;
+                *index += 1;
+                continue;
+            }
             _ => break,
         };
 
@@ -84,9 +94,14 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
             num = Some(digit)
         };
 
+        if den_mode {
+            den *= 10
+        }
+
         *index += 1
     }
 
     //TODO: remove the unwrap
-    Rational::new(num.expect("Number not found"), 1, false).unwrap()
+    //Safety: den is non-zero
+    Rational::new(num.expect("Number not found"), den, false).unwrap()
 }
