@@ -3,7 +3,5 @@
 mod rational;
 pub use rational::Rational;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
+mod lexer;
+pub use lexer::Lexer;

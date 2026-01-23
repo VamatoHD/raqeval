@@ -1,8 +1,5 @@
-use reval::Rational;
+use reval::Lexer;
 
 fn main() {
-    let a = Rational::new(1, 2, false).unwrap();
-    let b = Rational::new(3, 4, true).unwrap();
-    println!("{} + {}", &a, &b);
-    println!("{}", a + b)
+    println!("{:?}", Lexer::new("10+10000/ 100"))
 }
