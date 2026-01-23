@@ -3,6 +3,8 @@ use super::Rational;
 #[derive(Debug)]
 enum Token {
     Number(Rational),
+    Func(String),
+    Var(String),
     Plus,
     Minus,
     Times,
@@ -18,40 +20,48 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(input: &str) -> Self {
+    pub fn new(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Self {
         Self {
-            tokens: parse_string(input),
+            tokens: parse_string(input, vars, funcs),
         }
     }
 }
 
-fn parse_string(str: &str) -> Vec<Token> {
+fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec<Token> {
     let mut res = Vec::new();
     let mut index = 0;
+
+    let funcs = funcs.unwrap_or(&[]);
+    let vars = vars.unwrap_or(&[]);
 
     while index < str.len() {
         let char = match str.chars().nth(index) {
             Some(char) => char,
             None => break, //Should be unreachable
         };
-        dbg!(char);
 
-        let token = match char {
-            ' ' => {
-                index += 1;
-                continue;
+        let token = if let Some(func) = next_segment_in(str, &mut index, &funcs) {
+            Token::Func(func)
+        } else if let Some(var) = next_segment_in(str, &mut index, &vars) {
+            Token::Var(var)
+        } else {
+            match char {
+                ' ' => {
+                    index += 1;
+                    continue;
+                }
+                '+' => Token::Plus,
+                '-' => Token::Minus,
+                '*' => Token::Times,
+                '/' => Token::Slash,
+                '(' => Token::LParen,
+                ')' => Token::RParen,
+                '0'..='9' => Token::Number(parse_number(&str, &mut index)),
+                _ => panic!("Invalid token: {}", char),
             }
-            '+' => Token::Plus,
-            '-' => Token::Minus,
-            '*' => Token::Times,
-            '/' => Token::Slash,
-            '(' => Token::LParen,
-            ')' => Token::RParen,
-            '0'..='9' => Token::Number(parse_number(&str, &mut index)),
-            _ => panic!("Invalid token: {}", char),
         };
 
-        if !matches!(token, Token::Number(_)) {
+        if !matches!(token, Token::Number(_) | Token::Var(_) | Token::Func(_)) {
             index += 1;
         }
         res.push(token);
@@ -104,4 +114,23 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
     //TODO: remove the unwrap
     //Safety: den is non-zero
     Rational::new(num.expect("Number not found"), den, false).unwrap()
+}
+
+pub fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {
+    if itens.len() == 0 {
+        return None;
+    };
+
+    for item in itens {
+        if str.len() == 0 {
+            continue;
+        }
+
+        if str.get(*index..*index + item.len()) == Some(item) {
+            *index += item.len();
+            return Some(item.to_string());
+        }
+    }
+
+    None
 }

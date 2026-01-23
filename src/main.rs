@@ -1,5 +1,12 @@
 use reval::Lexer;
 
 fn main() {
-    println!("{:?}", Lexer::new("100.0/50.1+2.5"))
+    println!(
+        "{:?}",
+        Lexer::new(
+            "sin(x) * cos(y)",
+            Some(&vec!["x", "y"]),
+            Some(&vec!["sin", "cos"])
+        )
+    )
 }
