@@ -34,6 +34,10 @@ fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec
     let funcs = funcs.unwrap_or(&[]);
     let vars = vars.unwrap_or(&[]);
 
+    if funcs.iter().any(|func| vars.contains(func)) {
+        panic!("Funcs and Vars have an element in common");
+    }
+
     while index < str.len() {
         let char = match str.chars().nth(index) {
             Some(char) => char,
