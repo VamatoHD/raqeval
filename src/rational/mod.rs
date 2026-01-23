@@ -254,10 +254,3 @@ mod tests {
         assert_eq!(rat!(-1) * rat!(-1), rat!(1));
     }
 }
-
-fn mul_test() {
-    assert_eq!(rat!(0) * rat!(0), rat!(0));
-    assert_eq!(rat!(2) * rat!(4), rat!(8));
-    assert_eq!(rat!(-2) * rat!(1 / 2), rat!(-1));
-    assert_eq!(rat!(-1) * rat!(-1), rat!(1));
-}
