@@ -1,4 +1,4 @@
-use super::Rational;
+use super::{Error, Rational};
 
 #[derive(Debug)]
 enum Token {
@@ -21,28 +21,43 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Self {
+    pub fn new(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Result<Self, Error> {
         let filtered = input
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
 
-        Self {
-            tokens: parse_string(&filtered, vars, funcs),
+        Ok(Self {
+            tokens: parse_string(&filtered, vars, funcs)?,
             expr: filtered,
-        }
+        })
     }
 }
 
-fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec<Token> {
+fn parse_string(
+    str: &str,
+    vars: Option<&[&str]>,
+    funcs: Option<&[&str]>,
+) -> Result<Vec<Token>, Error> {
     let mut res = Vec::new();
     let mut index = 0;
 
     let funcs = funcs.unwrap_or(&[]);
     let vars = vars.unwrap_or(&[]);
 
-    if funcs.iter().any(|func| vars.contains(func)) {
-        panic!("Funcs and Vars have an element in common");
+    let overlap: Vec<_> = funcs
+        .iter()
+        .filter_map(|func| {
+            if vars.contains(func) {
+                Some(func.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if !overlap.is_empty() {
+        return Err(Error::OverlapElements(overlap));
     }
 
     while index < str.len() {
@@ -63,8 +78,8 @@ fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec
                 '/' => Token::Slash,
                 '(' => Token::LParen,
                 ')' => Token::RParen,
-                '0'..='9' => Token::Number(parse_number(&str, &mut index)),
-                _ => panic!("Invalid token: {}", char),
+                '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
+                c => return Err(Error::InvalidToken(index, c)),
             }
         };
 
@@ -75,10 +90,10 @@ fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec
     }
 
     res.push(Token::Eof);
-    res
+    Ok(res)
 }
 
-fn parse_number(str: &str, index: &mut usize) -> Rational {
+fn parse_number(str: &str, index: &mut usize) -> Result<Rational, Error> {
     let mut num = None;
     let mut den = 1;
     let mut den_mode = false;
@@ -91,12 +106,12 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
 
         let digit = match char {
             '0'..='9' => {
-                //Safety: char is always a number ig
+                //Safety: char is always a number
                 char.to_digit(10).unwrap() as u128
             }
             '.' => {
                 if den_mode {
-                    panic!("Unable to parse number: Number has two dots");
+                    return Err(Error::TwoDots(*index));
                 };
                 den_mode = true;
                 *index += 1;
@@ -117,9 +132,8 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
         *index += 1
     }
 
-    //TODO: remove the unwrap
     //Safety: den is non-zero
-    Rational::new(num.expect("Number not found"), den, false).unwrap()
+    Ok(Rational::new(num.expect("Number not found"), den, false)?)
 }
 
 pub fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {

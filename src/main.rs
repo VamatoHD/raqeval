@@ -1,12 +1,12 @@
 use reval::Lexer;
 
 fn main() {
-    println!(
-        "{:?}",
-        Lexer::new(
-            "s i n(x) * cos(y) + 5 0 . 2",
-            Some(&vec!["x", "y"]),
-            Some(&vec!["sin", "cos"])
-        )
-    )
+    match Lexer::new(
+        "sin(x)+cos(y)",
+        Some(&vec!["x", "y"]),
+        Some(&vec!["sin", "cos"]),
+    ) {
+        Ok(v) => println!("{:?}", v),
+        Err(e) => println!("{}", e),
+    }
 }

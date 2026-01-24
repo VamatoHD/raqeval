@@ -6,14 +6,16 @@ use unsigned::Unsigned;
 
 use core::num::NonZeroU128;
 
+use super::Error;
+
 macro_rules! rat {
     // Zero cases
     (0 $(/ $_:literal)?) => {{ Rational::zero() }};
     (-0 $(/ $_:literal)?) => {{ Rational::zero() }};
 
     //Division by zero
-    ($_:literal / 0) => {{ compile_error!("division by zero.") }};
-    ($_:literal / -0) => {{ compile_error!("division by zero.") }};
+    ($_:literal / 0) => {{ compile_error!("division by zero") }};
+    ($_:literal / -0) => {{ compile_error!("division by zero") }};
 
     //Just the numerator
     (-$a:literal) => {{ -rat!($a / 1) }};
@@ -30,9 +32,9 @@ macro_rules! rat {
         const ABS_DEN: u128 = DEN.unsigned_abs();
 
         match Rational::new(ABS_NUM, ABS_DEN, SIGN) {
-            Some(res) => res,
+            Ok(res) => res,
             //Safety: den is non-zero
-            None => unreachable!(),
+            Err(_) => unreachable!(),
         }
     }};
 
@@ -79,19 +81,15 @@ impl Rational {
         }
     }
 
-    pub fn new(num: u128, den: u128, neg: bool) -> Option<Self> {
+    pub fn new(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
         if num == 0 {
-            return Some(Self::zero());
+            return Ok(Self::zero());
         }
 
         // Num is non-zero
-        let num = NonZeroU128::new(num)?;
-        let den = NonZeroU128::new(den)?;
-        Some(Self::from_nonzero(num, den, neg))
-    }
-
-    pub fn try_new(num: u128, den: u128, neg: bool) -> Result<Self, &'static str> {
-        Self::new(num, den, neg).ok_or("Denominator cannot be zero")
+        let num = NonZeroU128::new(num).unwrap();
+        let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
+        Ok(Self::from_nonzero(num, den, neg))
     }
 
     pub fn reduce_in_place(&mut self) -> &mut Self {
