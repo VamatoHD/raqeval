@@ -17,12 +17,19 @@ enum Token {
 #[derive(Debug)]
 pub struct Lexer {
     tokens: Vec<Token>,
+    expr: String,
 }
 
 impl Lexer {
     pub fn new(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Self {
+        let filtered = input
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
         Self {
-            tokens: parse_string(input, vars, funcs),
+            tokens: parse_string(&filtered, vars, funcs),
+            expr: filtered,
         }
     }
 }
@@ -50,10 +57,6 @@ fn parse_string(str: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Vec
             Token::Var(var)
         } else {
             match char {
-                ' ' => {
-                    index += 1;
-                    continue;
-                }
                 '+' => Token::Plus,
                 '-' => Token::Minus,
                 '*' => Token::Times,
@@ -89,7 +92,7 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
         let digit = match char {
             '0'..='9' => {
                 //Safety: char is always a number ig
-                char.to_string().parse::<u128>().unwrap()
+                char.to_digit(10).unwrap() as u128
             }
             '.' => {
                 if den_mode {
@@ -102,10 +105,9 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
             _ => break,
         };
 
-        if let Some(value) = num {
-            num = Some(value * 10 + digit)
-        } else {
-            num = Some(digit)
+        num = match num {
+            Some(value) => Some(value * 10 + digit),
+            None => Some(digit),
         };
 
         if den_mode {
@@ -121,15 +123,11 @@ fn parse_number(str: &str, index: &mut usize) -> Rational {
 }
 
 pub fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {
-    if itens.len() == 0 {
+    if str.len() == 0 || itens.len() == 0 {
         return None;
     };
 
     for item in itens {
-        if str.len() == 0 {
-            continue;
-        }
-
         if str.get(*index..*index + item.len()) == Some(item) {
             *index += item.len();
             return Some(item.to_string());
