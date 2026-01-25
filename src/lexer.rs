@@ -1,7 +1,7 @@
 use super::{Error, Rational};
 
-#[derive(Debug)]
-enum Token {
+#[derive(Debug, Clone)]
+pub enum Token {
     Number(Rational),
     Func(String),
     Var(String),
@@ -27,10 +27,21 @@ impl Lexer {
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
 
+        let mut parsed = parse_string(&filtered, vars, funcs)?;
+        parsed.reverse();
+
         Ok(Self {
-            tokens: parse_string(&filtered, vars, funcs)?,
+            tokens: parsed,
             expr: filtered,
         })
+    }
+
+    pub fn next(&mut self) -> Token {
+        self.tokens.pop().unwrap_or(Token::Eof)
+    }
+
+    pub fn peek(&self) -> Token {
+        self.tokens.last().cloned().unwrap_or(Token::Eof)
     }
 }
 
@@ -89,7 +100,6 @@ fn parse_string(
         res.push(token);
     }
 
-    res.push(Token::Eof);
     Ok(res)
 }
 
