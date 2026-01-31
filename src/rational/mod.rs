@@ -143,8 +143,8 @@ impl std::ops::Mul for Rational {
 impl std::ops::Add for Rational {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        let left_num = dbg!(self.num * rhs.den.get());
-        let right_num = dbg!(rhs.num * self.den.get());
+        let left_num = self.num * rhs.den.get();
+        let right_num = rhs.num * self.den.get();
 
         let den = self.den.get() * rhs.den.get();
 

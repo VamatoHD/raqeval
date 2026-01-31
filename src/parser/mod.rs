@@ -4,31 +4,8 @@ use crate::Rational;
 mod lexer;
 pub use lexer::{Assoc, Ident, Lexer, Op, Token};
 
-#[derive(Debug)]
-pub enum Expr {
-    Const(Rational),
-    Ident(Ident),
-    Prefix {
-        op: Op,
-        rhs: Box<Expr>,
-    },
-    Infix {
-        lhs: Box<Expr>,
-        op: Op,
-        rhs: Box<Expr>,
-    },
-}
-
-impl std::fmt::Display for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expr::Const(v) => write!(f, "{}", v),
-            Expr::Ident(i) => write!(f, "{}", i),
-            Expr::Infix { lhs, op, rhs } => write!(f, "{} {} {}", lhs, op, rhs),
-            Expr::Prefix { op, rhs } => write!(f, "{}{}", op, rhs),
-        }
-    }
-}
+mod expr;
+pub use expr::Expr;
 
 pub fn parse(input: &str) -> Result<Expr, Error> {
     let mut lexer = Lexer::new(input, None, None)?;
