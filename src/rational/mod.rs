@@ -113,6 +113,18 @@ impl Rational {
         new.reduce_in_place();
         new
     }
+
+    pub fn checked_div(self, rhs: Self) -> Result<Self, Error> {
+        if rhs.num == 0 {
+            Err(Error::DivisionByZero)
+        } else {
+            let num = self.num * rhs.den.get();
+            let den = self.den.get() * rhs.num;
+            let neg = self.neg ^ rhs.neg;
+
+            Ok(Self::new(num, den, neg)?)
+        }
+    }
 }
 
 impl std::fmt::Display for Rational {
@@ -178,6 +190,13 @@ impl std::ops::Neg for Rational {
         let mut new = self.clone();
         new.neg = !new.neg && new.num != 0;
         new
+    }
+}
+
+impl std::ops::Div for Rational {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        self.checked_div(rhs).expect("division by zero")
     }
 }
 
