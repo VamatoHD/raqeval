@@ -1,19 +1,7 @@
-use reval::{Lexer, Token};
+use reval;
 
 fn main() {
-    let mut l = match Lexer::new(
-        "sin(x)+cos(y)",
-        Some(&vec!["x", "y"]),
-        Some(&vec!["sin", "cos"]),
-    ) {
-        Ok(v) => v,
-        Err(e) => panic!("{}", e),
-    };
-
-    let mut next = l.next();
-    while !matches!(next, Token::Eof) {
-        println!("{:?} -> {:?}", next, l.peek());
-        next = l.next()
-    }
-    println!("{:?}", next);
+    let res = reval::parse("2 * 2 ^ 3 + 3 - 2 * 10").unwrap();
+    println!("{:?}", &res);
+    println!("{}", res)
 }

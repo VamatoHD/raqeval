@@ -3,8 +3,8 @@
 mod rational;
 pub use rational::Rational;
 
-mod lexer;
-pub use lexer::{Lexer, Token};
+mod parser;
+pub use parser::*;
 
 mod error;
 pub use error::Error;

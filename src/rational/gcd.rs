@@ -1,5 +1,3 @@
-#![no_std]
-
 use core::num::NonZeroU128;
 
 /// Calculates the Greatest Commom Divider (GCD) of two `u128` using the **Binary GCD** algorithm

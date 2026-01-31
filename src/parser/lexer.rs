@@ -1,17 +1,78 @@
 use super::{Error, Rational};
 
 #[derive(Debug, Clone)]
+pub enum Op {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Exp,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Assoc {
+    Left,
+    Right,
+}
+
+impl Op {
+    pub fn get_info(&self) -> (usize, Assoc) {
+        match self {
+            Op::Add | Op::Sub => (1, Assoc::Left),
+            Op::Mul | Op::Div => (2, Assoc::Left),
+            Op::Exp => (3, Assoc::Right),
+        }
+    }
+}
+
+impl std::fmt::Display for Op {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Op::Add => write!(f, "+"),
+            Op::Sub => write!(f, "-"),
+            Op::Mul => write!(f, "*"),
+            Op::Div => write!(f, "/"),
+            Op::Exp => write!(f, "^"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Ident {
+    Var(String),
+    Func(String),
+}
+
+impl std::fmt::Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Ident::Func(v) => write!(f, "Func: {}", v),
+            Ident::Var(v) => write!(f, "Var: {}", v),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Token {
     Number(Rational),
-    Func(String),
-    Var(String),
-    Plus,
-    Minus,
-    Times,
-    Slash,
+    Ident(Ident),
+    Op(Op),
     RParen,
     LParen,
     Eof,
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Number(n) => write!(f, "{}", n),
+            Token::Ident(i) => write!(f, "{}", i),
+            Token::Op(o) => write!(f, "{}", o),
+            Token::RParen => write!(f, ")"),
+            Token::LParen => write!(f, "("),
+            Token::Eof => write!(f, "Eof"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -78,23 +139,24 @@ fn parse_string(
         };
 
         let token = if let Some(func) = next_segment_in(str, &mut index, &funcs) {
-            Token::Func(func)
+            Token::Ident(Ident::Func(func))
         } else if let Some(var) = next_segment_in(str, &mut index, &vars) {
-            Token::Var(var)
+            Token::Ident(Ident::Var(var))
         } else {
             match char {
-                '+' => Token::Plus,
-                '-' => Token::Minus,
-                '*' => Token::Times,
-                '/' => Token::Slash,
+                '+' => Token::Op(Op::Add),
+                '-' => Token::Op(Op::Sub),
+                '*' => Token::Op(Op::Mul),
+                '/' => Token::Op(Op::Div),
+                '^' => Token::Op(Op::Exp),
                 '(' => Token::LParen,
                 ')' => Token::RParen,
                 '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
-                c => return Err(Error::InvalidToken(index, c)),
+                c => return Err(Error::InvalidCharacter(index, c)),
             }
         };
 
-        if !matches!(token, Token::Number(_) | Token::Var(_) | Token::Func(_)) {
+        if !matches!(token, Token::Number(_) | Token::Ident(_)) {
             index += 1;
         }
         res.push(token);

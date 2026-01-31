@@ -117,10 +117,11 @@ impl Rational {
 
 impl std::fmt::Display for Rational {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.neg {
-            write!(f, "-{}/{}", self.num, self.den.get())
-        } else {
-            write!(f, "{}/{}", self.num, self.den.get())
+        match (self.neg, self.den.get()) {
+            (true, 1) => write!(f, "-{}", self.num),
+            (false, 1) => write!(f, "{}", self.num),
+            (true, den) => write!(f, "-{}/{}", self.num, den),
+            (false, den) => write!(f, "{}/{}", self.num, den),
         }
     }
 }
