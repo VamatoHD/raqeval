@@ -62,12 +62,8 @@ pub struct Rational {
 }
 
 impl Rational {
-    fn from_nonzero(num: NonZeroU128, den: NonZeroU128, neg: bool) -> Self {
-        let mut new = Self {
-            num: num.get(),
-            den,
-            neg,
-        };
+    fn from_nonzero(num: u128, den: NonZeroU128, neg: bool) -> Self {
+        let mut new = Self { num, den, neg };
         new.reduce_in_place();
         new
     }
@@ -82,14 +78,14 @@ impl Rational {
     }
 
     pub fn new(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
-        if num == 0 {
-            return Ok(Self::zero());
+        match (num, den) {
+            (_, 0) => Err(Error::DivisionByZero),
+            (0, _) => Ok(Self::zero()),
+            _ => {
+                let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
+                Ok(Self::from_nonzero(num, den, neg))
+            }
         }
-
-        // Num is non-zero
-        let num = NonZeroU128::new(num).unwrap();
-        let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
-        Ok(Self::from_nonzero(num, den, neg))
     }
 
     pub fn reduce_in_place(&mut self) -> &mut Self {
@@ -163,24 +159,27 @@ impl std::ops::Add for Rational {
         let (num, neg) = match (self.neg, rhs.neg) {
             (false, false) => (left_num + right_num, false),
             (true, true) => (left_num + right_num, true),
-            (true, false) => {
+            (lhs, rhs) => {
+                // Either lhs or rhs are true (but not both)
+                // Therefore, subtract the bigger for the smaller
+                // And negate if the bigger was the negative
                 if left_num > right_num {
-                    (left_num - right_num, true)
+                    (left_num - right_num, lhs)
                 } else {
-                    (right_num - left_num, false)
-                }
-            }
-            (false, true) => {
-                if left_num > right_num {
-                    (left_num - right_num, false)
-                } else {
-                    (right_num - left_num, true)
+                    (right_num - left_num, rhs)
                 }
             }
         };
 
         //Safety: den is non-zero
         Self::new(num, den, neg).unwrap()
+    }
+}
+
+impl std::ops::Sub for Rational {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + (-rhs)
     }
 }
 
@@ -232,12 +231,12 @@ mod tests {
         assert_eq!(rat!(0), -rat!(0));
         assert_eq!(rat!(-1), -rat!(1));
         assert_eq!(
-            Rational::from_nonzero(to_nonzeroU128!(1), to_nonzeroU128!(1), true),
-            -Rational::from_nonzero(to_nonzeroU128!(1), to_nonzeroU128!(1), false)
+            Rational::from_nonzero(1, to_nonzeroU128!(1), true),
+            -Rational::from_nonzero(1, to_nonzeroU128!(1), false)
         );
         assert_ne!(
-            Rational::from_nonzero(to_nonzeroU128!(1), to_nonzeroU128!(1), true),
-            -Rational::from_nonzero(to_nonzeroU128!(1), to_nonzeroU128!(1), true)
+            Rational::from_nonzero(1, to_nonzeroU128!(1), true),
+            -Rational::from_nonzero(1, to_nonzeroU128!(1), true)
         );
         assert_eq!({ -Rational::zero() }.neg, false);
     }
@@ -270,5 +269,31 @@ mod tests {
         assert_eq!(rat!(2) * rat!(4), rat!(8));
         assert_eq!(rat!(-2) * rat!(1 / 2), rat!(-1));
         assert_eq!(rat!(-1) * rat!(-1), rat!(1));
+    }
+
+    #[test]
+    fn div_test() {
+        rat!(1)
+            .checked_div(rat!(0))
+            .expect_err("Should be division by zero");
+
+        assert_eq!(rat!(4) / rat!(2), rat!(2));
+        assert_eq!(rat!(7 / 3) / rat!(7 / 3), rat!(1));
+        assert_eq!(rat!(7 / 3) / rat!(-7 / 3), rat!(-1));
+        assert_eq!(rat!(4 / 2) / rat!(-2 / 4), rat!(-16 / 4));
+    }
+
+    #[test]
+    fn sub_test() {
+        assert_eq!(rat!(1) - rat!(1), rat!(0));
+        assert_eq!(rat!(1 / 2) - rat!(1 / 2), rat!(0));
+        assert_eq!(rat!(-1 / 2) - rat!(1 / 2), rat!(-1));
+        assert_eq!(rat!(99 / 100) - rat!(1 / 100), rat!(98 / 100));
+        assert_eq!(rat!(-2) - rat!(-2), rat!(0));
+    }
+
+    fn create_test() {
+        assert_eq!(Rational::new(0, 1, true).unwrap(), rat!(0));
+        Rational::new(0, 0, false).expect_err("Should be division by zero");
     }
 }

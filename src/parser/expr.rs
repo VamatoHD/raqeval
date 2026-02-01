@@ -39,7 +39,7 @@ impl Expr {
                 {
                     let res = match op {
                         Op::Add => a + b,
-                        Op::Sub => a + (-b),
+                        Op::Sub => a - b,
                         Op::Mul => a * b,
                         Op::Div => a / b,
                         _ => unimplemented!(),
