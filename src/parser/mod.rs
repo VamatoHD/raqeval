@@ -7,8 +7,8 @@ pub use lexer::{Assoc, Ident, Lexer, Op, Token};
 mod expr;
 pub use expr::Expr;
 
-pub fn parse(input: &str) -> Result<Expr, Error> {
-    let mut lexer = Lexer::new(input, None, None)?;
+pub fn parse(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Result<Expr, Error> {
+    let mut lexer = Lexer::new(input, vars, funcs)?;
     compute_expr(&mut lexer, 1)
 }
 
@@ -22,6 +22,23 @@ fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
                 Err(Error::InvalidParens)
             }
         }
+        Token::Ident(Ident::Func(func)) => {
+            if !matches!(lexer.next(), Token::LParen) {
+                return Err(Error::InvalidParens);
+            }
+
+            let expr = compute_expr(lexer, 0)?;
+
+            if matches!(lexer.next(), Token::RParen) {
+                Ok(Expr::Call {
+                    func,
+                    arg: Box::new(expr),
+                })
+            } else {
+                Err(Error::InvalidParens)
+            }
+        }
+        Token::Ident(Ident::Var(var)) => Ok(Expr::Var(var)),
         Token::Number(n) => Ok(Expr::Const(n)),
         t => Err(Error::AtomExpected(t)),
     }

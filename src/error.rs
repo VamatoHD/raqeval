@@ -11,6 +11,9 @@ pub enum Error {
     OverlapElements(Vec<String>),
     InvalidCharacter(usize, char),
     TwoDots(usize),
+    //Expr
+    InvalidFunc(String),
+    InvalidVar(String),
 }
 
 impl std::fmt::Display for Error {
@@ -23,6 +26,8 @@ impl std::fmt::Display for Error {
             Error::OverlapElements(v) => write!(f, "overlaping element(s): {}", v.join(", ")),
             Error::InvalidCharacter(i, c) => write!(f, "invalid token at index {}: \"{}\"", i, c),
             Error::TwoDots(i) => write!(f, "invalid dot at index {}", i),
+            Error::InvalidFunc(func) => write!(f, "invalid func: {}", func),
+            Error::InvalidVar(v) => write!(f, "invalid var: {}", v),
         }
     }
 }
