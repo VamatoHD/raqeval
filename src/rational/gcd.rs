@@ -10,7 +10,7 @@ use core::num::NonZeroU128;
 /// 2. gcd(2ᵃ ⋅ u, 2ᵇ ⋅ v) = 2ᵏ ⋅ gcd(u, v) where k = min(a, b)
 /// 3. gcd(u, 2ᵇ ⋅ v) = gcd(u, v) if u is odd
 /// 4. gcd(u, v) = gcd(u, v-u) if u,v are both odd and u ≤ v
-pub fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
+pub(super) fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
     //Quick exit for base cases (identity 1)
     if u == v {
         return u; //or v
@@ -56,7 +56,7 @@ pub fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
     u.checked_shl(k).unwrap_or(1)
 }
 
-pub fn gdc_nonzerou128(u: NonZeroU128, v: NonZeroU128) -> NonZeroU128 {
+pub(super) fn gdc_nonzerou128(u: NonZeroU128, v: NonZeroU128) -> NonZeroU128 {
     match NonZeroU128::new(gcd_u128(u.get(), v.get())) {
         Some(result) => result,
         None => {

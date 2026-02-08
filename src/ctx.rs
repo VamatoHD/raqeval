@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::Expr;
+use crate::Expr;
 
 pub struct Ctx {
     funcs: HashMap<String, Expr>,

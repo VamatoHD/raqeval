@@ -1,4 +1,5 @@
-use super::Token;
+//use crate::lexer::Token;
+use crate::lexer::Token;
 
 #[derive(Debug)]
 pub enum Error {

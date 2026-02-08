@@ -6,7 +6,7 @@ use unsigned::Unsigned;
 
 use core::num::NonZeroU128;
 
-use super::Error;
+use crate::Error;
 
 macro_rules! rat {
     // Zero cases

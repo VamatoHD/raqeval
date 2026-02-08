@@ -1,4 +1,10 @@
-use super::{Error, Rational};
+use crate::{Error, Rational};
+
+#[derive(Debug, PartialEq)]
+pub enum Assoc {
+    Left,
+    Right,
+}
 
 #[derive(Debug, Clone)]
 pub enum Op {
@@ -7,12 +13,6 @@ pub enum Op {
     Mul,
     Div,
     Exp,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Assoc {
-    Left,
-    Right,
 }
 
 impl Op {
