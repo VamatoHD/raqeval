@@ -1,12 +1,14 @@
 use reval;
 
 fn main() {
-    let f = reval::parse("2 * x", Some(&vec!["x"]), None).unwrap();
+    let f = reval::parse_func("f(x) =  x + 1").unwrap();
+    let g = reval::parse_func("g(y) =  2*y + 1").unwrap();
 
     let mut ctx = reval::Ctx::new();
-    ctx.add_func("f".to_string(), f);
+    ctx.add_func(f);
+    ctx.add_func(g);
 
-    let res = reval::parse("f(f(4)) + 1", Some(&vec!["x"]), Some(&vec!["f"])).unwrap();
+    let res = reval::parse("g(f(2))", Some(&ctx)).unwrap();
 
     println!("{:?}", &res);
     println!("{}", &res);

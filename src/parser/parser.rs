@@ -1,9 +1,4 @@
-use crate::{Error, Expr, lexer::*};
-
-pub fn parse(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Result<Expr, Error> {
-    let mut lexer = Lexer::new(input, vars, funcs)?;
-    compute_expr(&mut lexer, 1)
-}
+use crate::{Ctx, Error, Expr, Func, Rational, lexer::*};
 
 fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
     match lexer.next() {
@@ -73,4 +68,68 @@ fn compute_expr(lexer: &mut Lexer, min_prec: usize) -> Result<Expr, Error> {
     }
 
     Ok(atom_lhs)
+}
+
+pub fn parse(input: &str, ctx: Option<&Ctx>) -> Result<Expr, Error> {
+    let mut lexer = Lexer::new(input, ctx)?;
+    compute_expr(&mut lexer, 1)
+}
+
+pub fn parse_func(input: &str) -> Result<Func, Error> {
+    let (lhs, rhs) = input
+        .split_once("=")
+        .ok_or_else(|| Error::InvalidFunc(todo!()))?;
+
+    let mut lhs_tokens = parse_string(lhs, None, true)?.into_iter();
+
+    let func_name = {
+        let mut parts = Vec::new();
+        let mut had_lparen = false;
+        while let Some(token) = lhs_tokens.next() {
+            match token {
+                Token::LParen => {
+                    had_lparen = true;
+                    break;
+                }
+                Token::Ident(Ident::Unknown(v)) => parts.push(v.to_string()),
+                Token::Number(n) => {
+                    if n.is_integer() && !n.is_neg() {
+                        parts.push(n.to_string())
+                    } else {
+                        return Err(Error::InvalidFunc(todo!()));
+                    }
+                }
+
+                _ => return Err(Error::InvalidFunc(todo!())),
+            }
+        }
+
+        if !had_lparen {
+            return Err(Error::InvalidFunc(todo!()));
+        }
+
+        let name = parts.join("");
+        if name.is_empty() {
+            return Err(Error::InvalidFunc(todo!()));
+        }
+        name
+    };
+
+    let Some(Token::Ident(Ident::Unknown(func_arg))) = lhs_tokens.next() else {
+        return Err(Error::InvalidFunc(todo!()));
+    };
+
+    let ctx = {
+        let mut ctx = Ctx::new();
+        ctx.add_var(func_arg.to_string().as_str());
+        ctx
+    };
+
+    let expr = parse(rhs, Some(&ctx))?;
+
+    Ok(Func::new(
+        func_name.as_str(),
+        func_arg.to_string().as_str(),
+        expr,
+    ))
 }

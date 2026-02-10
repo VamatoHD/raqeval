@@ -30,12 +30,15 @@ impl Expr {
                 }
             }
             Expr::Call { func, arg } => {
-                let func_expr = ctx
+                let func = ctx
                     .get_func(&func)
                     .ok_or_else(|| Error::InvalidFunc(func))?;
 
+                let func_expr = &func.expr;
+                let func_arg = &func.arg;
+
                 let expanded = func_expr
-                    .replace_var(&"x".to_string(), arg.as_ref())
+                    .replace_var(func_arg, arg.as_ref())
                     .unwrap_or_else(|| func_expr.clone());
 
                 expanded.reduce(ctx)?

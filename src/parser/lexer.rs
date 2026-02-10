@@ -1,4 +1,4 @@
-use crate::{Error, Rational};
+use crate::{Ctx, Error, Rational};
 
 #[derive(Debug, PartialEq)]
 pub enum Assoc {
@@ -41,6 +41,7 @@ impl std::fmt::Display for Op {
 pub enum Ident {
     Var(String),
     Func(String),
+    Unknown(char),
 }
 
 impl std::fmt::Display for Ident {
@@ -48,6 +49,7 @@ impl std::fmt::Display for Ident {
         match self {
             Ident::Func(v) => write!(f, "Func: {}", v),
             Ident::Var(v) => write!(f, "Var: {}", v),
+            Ident::Unknown(v) => write!(f, "Unknown: {}", v),
         }
     }
 }
@@ -78,23 +80,25 @@ impl std::fmt::Display for Token {
 #[derive(Debug)]
 pub struct Lexer {
     tokens: Vec<Token>,
-    expr: String,
 }
 
 impl Lexer {
-    pub fn new(input: &str, vars: Option<&[&str]>, funcs: Option<&[&str]>) -> Result<Self, Error> {
+    pub fn new(input: &str, ctx: Option<&Ctx>) -> Result<Self, Error> {
         let filtered = input
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
 
-        let mut parsed = parse_string(&filtered, vars, funcs)?;
+        let mut parsed = parse_string(&filtered, ctx, false)?;
         parsed.reverse();
 
-        Ok(Self {
-            tokens: parsed,
-            expr: filtered,
-        })
+        Ok(Self { tokens: parsed })
+    }
+
+    pub fn from_tokens(tokens: &Vec<Token>) -> Self {
+        let mut rev = tokens.clone();
+        rev.reverse();
+        Self { tokens: rev }
     }
 
     pub fn next(&mut self) -> Token {
@@ -106,16 +110,18 @@ impl Lexer {
     }
 }
 
-fn parse_string(
+pub(crate) fn parse_string(
     str: &str,
-    vars: Option<&[&str]>,
-    funcs: Option<&[&str]>,
+    ctx: Option<&Ctx>,
+    allow_unknown: bool,
 ) -> Result<Vec<Token>, Error> {
     let mut res = Vec::new();
     let mut index = 0;
 
-    let funcs = funcs.unwrap_or(&[]);
-    let vars = vars.unwrap_or(&[]);
+    let (funcs, vars) = match ctx {
+        Some(c) => (c.get_funcs_names(), c.get_vars_names()),
+        None => (vec![], vec![]),
+    };
 
     let overlap: Vec<_> = funcs
         .iter()
@@ -152,11 +158,25 @@ fn parse_string(
                 '(' => Token::LParen,
                 ')' => Token::RParen,
                 '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
-                c => return Err(Error::InvalidCharacter(index, c)),
+                ' ' => {
+                    index += 1;
+                    continue;
+                }
+                c => {
+                    if allow_unknown {
+                        Token::Ident(Ident::Unknown(c))
+                    } else {
+                        return Err(Error::InvalidCharacter(index, c));
+                    }
+                }
             }
         };
 
-        if !matches!(token, Token::Number(_) | Token::Ident(_)) {
+        // Only increase the index if token isn't a number, a var nor a func
+        // Since index was already increased
+        if !matches!(token, Token::Number(_) | Token::Ident(_))
+            || matches!(token, Token::Ident(Ident::Unknown(_)))
+        {
             index += 1;
         }
         res.push(token);
@@ -208,7 +228,7 @@ fn parse_number(str: &str, index: &mut usize) -> Result<Rational, Error> {
     Ok(Rational::new(num.expect("Number not found"), den, false)?)
 }
 
-pub fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {
+fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {
     if str.len() == 0 || itens.len() == 0 {
         return None;
     };

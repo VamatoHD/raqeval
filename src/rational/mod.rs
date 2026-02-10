@@ -84,6 +84,17 @@ impl Rational {
             Ok(Self::new(num, den, neg)?)
         }
     }
+
+    #[inline]
+    pub fn is_integer(self) -> bool {
+        //Safety: 1 is non-zero
+        self.den == to_nonzeroU128!(1)
+    }
+
+    #[inline]
+    pub fn is_neg(self) -> bool {
+        self.neg
+    }
 }
 
 impl std::fmt::Display for Rational {
