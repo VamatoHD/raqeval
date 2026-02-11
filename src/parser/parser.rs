@@ -78,7 +78,7 @@ pub fn parse(input: &str, ctx: Option<&Ctx>) -> Result<Expr, Error> {
 pub fn parse_func(input: &str) -> Result<Func, Error> {
     let (lhs, rhs) = input
         .split_once("=")
-        .ok_or_else(|| Error::InvalidFunc(todo!()))?;
+        .ok_or_else(|| Error::InvalidFunc("no \"=\" found".to_string()))?;
 
     let mut lhs_tokens = parse_string(lhs, None, true)?.into_iter();
 
@@ -96,27 +96,31 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
                     if n.is_integer() && !n.is_neg() {
                         parts.push(n.to_string())
                     } else {
-                        return Err(Error::InvalidFunc(todo!()));
+                        return Err(Error::InvalidFunc(
+                            "found decimal number in name".to_string(),
+                        ));
                     }
                 }
 
-                _ => return Err(Error::InvalidFunc(todo!())),
+                t => return Err(Error::InvalidFunc(format!("found \"{}\" in name", t))),
             }
         }
 
         if !had_lparen {
-            return Err(Error::InvalidFunc(todo!()));
+            return Err(Error::InvalidFunc("left parenthesis not found".to_string()));
         }
 
         let name = parts.join("");
         if name.is_empty() {
-            return Err(Error::InvalidFunc(todo!()));
+            return Err(Error::InvalidFunc("empty function name".to_string()));
         }
         name
     };
 
     let Some(Token::Ident(Ident::Unknown(func_arg))) = lhs_tokens.next() else {
-        return Err(Error::InvalidFunc(todo!()));
+        return Err(Error::InvalidFunc(
+            "right parenthesis not found".to_string(),
+        ));
     };
 
     let ctx = {
