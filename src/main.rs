@@ -1,14 +1,14 @@
-use reval;
+use raqeval;
 
 fn main() {
-    let f = reval::parse_func("f(x) =  x + 1").unwrap();
-    let g = reval::parse_func("g(y) =  2*y + 1").unwrap();
+    let f = raqeval::parse_func("f(x) =  x + 1").unwrap();
+    let g = raqeval::parse_func("g(y) =  2*y + 1").unwrap();
 
-    let mut ctx = reval::Ctx::new();
+    let mut ctx = raqeval::Ctx::new();
     ctx.add_func(f);
     ctx.add_func(g);
 
-    let res = reval::parse("g(f(2))", Some(&ctx)).unwrap();
+    let res = raqeval::parse("g(f(2))", Some(&ctx)).unwrap();
 
     println!("{:?}", &res);
     println!("{}", &res);
