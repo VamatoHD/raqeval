@@ -1,3 +1,4 @@
+use super::capture;
 use crate::{Ctx, Error, Expr, Func, Rational, lexer::*};
 
 fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
@@ -80,60 +81,57 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
         .split_once("=")
         .ok_or_else(|| Error::InvalidFunc("no \"=\" found".to_string()))?;
 
-    let mut lhs_tokens = parse_string(lhs, None, true)?.into_iter();
+    let mut lhs_tokens = parse_string(lhs, None, true)?;
 
-    let func_name = {
-        let mut parts = Vec::new();
-        let mut had_lparen = false;
-        while let Some(token) = lhs_tokens.next() {
-            match token {
-                Token::LParen => {
-                    had_lparen = true;
-                    break;
-                }
-                Token::Ident(Ident::Unknown(v)) => parts.push(v.to_string()),
-                Token::Number(n) => {
-                    if n.is_integer() && !n.is_neg() {
-                        parts.push(n.to_string())
-                    } else {
-                        return Err(Error::InvalidFunc(
-                            "found decimal number in name".to_string(),
-                        ));
-                    }
-                }
+    let items = capture!(
+        lhs_tokens,
+        [Token::Ident(Ident::Unknown(_)) | Token::Number(_)],
+        Token::LParen,
+        [Token::Ident(Ident::Unknown(_))],
+        Token::RParen
+    )
+    .ok_or_else(|| Error::InvalidFunc("invalid function signature".to_string()))?;
 
-                t => return Err(Error::InvalidFunc(format!("found \"{}\" in name", t))),
+    let func_name = items[0]
+        .iter()
+        .try_fold(String::new(), |mut acc, value| match value {
+            Token::Ident(Ident::Unknown(c)) => {
+                acc.push(*c);
+                Ok(acc)
             }
-        }
+            Token::Number(n) => {
+                if n.is_integer() && !n.is_neg() {
+                    Ok(acc + &n.to_string())
+                } else {
+                    Err(Error::InvalidFunc(
+                        "found decimal number in name".to_string(),
+                    ))
+                }
+            }
+            _ => unreachable!("Only captured Ident and Number"),
+        })?;
 
-        if !had_lparen {
-            return Err(Error::InvalidFunc("left parenthesis not found".to_string()));
-        }
+    if func_name.is_empty() {
+        return Err(Error::InvalidFunc("empty function name".to_string()));
+    }
 
-        let name = parts.join("");
-        if name.is_empty() {
-            return Err(Error::InvalidFunc("empty function name".to_string()));
-        }
-        name
-    };
-
-    let Some(Token::Ident(Ident::Unknown(func_arg))) = lhs_tokens.next() else {
-        return Err(Error::InvalidFunc(
-            "right parenthesis not found".to_string(),
-        ));
-    };
+    let func_arg = items[1]
+        .iter()
+        .fold(String::new(), |mut acc, value| match value {
+            Token::Ident(Ident::Unknown(c)) => {
+                acc.push(*c);
+                acc
+            }
+            _ => unreachable!("Only captured Ident"),
+        });
 
     let ctx = {
         let mut ctx = Ctx::new();
-        ctx.add_var(func_arg.to_string().as_str());
+        ctx.add_var(func_arg.as_str());
         ctx
     };
 
     let expr = parse(rhs, Some(&ctx))?;
 
-    Ok(Func::new(
-        func_name.as_str(),
-        func_arg.to_string().as_str(),
-        expr,
-    ))
+    Ok(Func::new(func_name.as_str(), func_arg.as_str(), expr))
 }
