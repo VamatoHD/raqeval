@@ -10,7 +10,7 @@ use core::num::NonZeroU128;
 /// 2. gcd(2ᵃ ⋅ u, 2ᵇ ⋅ v) = 2ᵏ ⋅ gcd(u, v) where k = min(a, b)
 /// 3. gcd(u, 2ᵇ ⋅ v) = gcd(u, v) if u is odd
 /// 4. gcd(u, v) = gcd(u, v-u) if u,v are both odd and u ≤ v
-pub(super) fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
+pub(super) const fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
     //Quick exit for base cases (identity 1)
     if u == v {
         return u; //or v
@@ -22,7 +22,11 @@ pub(super) fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
 
     // Identities 2 and 3:
     // Count are remove all common factors of 2
-    let k = u.trailing_zeros().min(v.trailing_zeros());
+    let k = if u.trailing_zeros() < v.trailing_zeros() {
+        u.trailing_zeros()
+    } else {
+        v.trailing_zeros()
+    };
     // Remove all factors of 2
     u >>= u.trailing_zeros();
     v >>= v.trailing_zeros();
@@ -53,10 +57,13 @@ pub(super) fn gcd_u128(mut u: u128, mut v: u128) -> u128 {
 
     // Multiply back the common powers of 2
     // Safe left shift (u << k)
-    u.checked_shl(k).unwrap_or(1)
+    match u.checked_shl(k) {
+        Some(v) => v,
+        None => 1,
+    }
 }
 
-pub(super) fn gdc_nonzerou128(u: NonZeroU128, v: NonZeroU128) -> NonZeroU128 {
+pub(super) const fn gdc_nonzerou128(u: NonZeroU128, v: NonZeroU128) -> NonZeroU128 {
     match NonZeroU128::new(gcd_u128(u.get(), v.get())) {
         Some(result) => result,
         None => {

@@ -51,6 +51,17 @@ impl Rational {
         }
     }
 
+    pub const fn new_unreduced(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
+        match (num, den) {
+            (_, 0) => Err(Error::DivisionByZero),
+            (0, _) => Ok(Self::zero()),
+            _ => match NonZeroU128::new(den) {
+                Some(den) => Ok(Rational { num, den, neg }),
+                None => Err(Error::DivisionByZero),
+            },
+        }
+    }
+
     pub fn reduce_in_place(&mut self) -> &mut Self {
         if self.num == 0 {
             //SAFETY: 1 is non-zero
@@ -86,13 +97,12 @@ impl Rational {
     }
 
     #[inline]
-    pub fn is_integer(self) -> bool {
-        //Safety: 1 is non-zero
-        self.den == to_nonzeroU128!(1)
+    pub const fn is_integer(self) -> bool {
+        self.den.get() == 1
     }
 
     #[inline]
-    pub fn is_neg(self) -> bool {
+    pub const fn is_neg(self) -> bool {
         self.neg
     }
 }
@@ -266,8 +276,25 @@ mod tests {
         assert_eq!(rat!(-2) - rat!(-2), rat!(0));
     }
 
+    #[test]
     fn create_test() {
         assert_eq!(Rational::new(0, 1, true).unwrap(), rat!(0));
         Rational::new(0, 0, false).expect_err("Should be division by zero");
+    }
+
+    #[test]
+    fn is_test() {
+        assert_eq!(rat!(1).is_neg(), false);
+        assert_eq!(rat!(-1).is_neg(), true);
+        assert_eq!(rat!(1 / 3).is_neg(), false);
+        assert_eq!(rat!(-1 / 3).is_neg(), true);
+
+        assert_eq!(rat!(1).is_integer(), true);
+        assert_eq!(rat!(2).is_integer(), true);
+        assert_eq!(rat!(3).is_integer(), true);
+        assert_eq!(rat!(-3).is_integer(), true);
+        assert_eq!(rat!(3 / 2).is_integer(), false);
+        assert_eq!(rat!(1 / 3).is_integer(), false);
+        assert_eq!(rat!(4 / 12).is_integer(), false);
     }
 }
