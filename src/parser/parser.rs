@@ -1,5 +1,5 @@
 use super::capture;
-use crate::{Ctx, Error, Expr, Func, Rational, lexer::*};
+use crate::{Error, Expr, Func, Rational, lexer::*};
 
 fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
     match lexer.next() {
@@ -11,23 +11,28 @@ fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
                 Err(Error::InvalidParens)
             }
         }
-        Token::Ident(Ident::Func(func)) => {
-            if !matches!(lexer.next(), Token::LParen) {
-                return Err(Error::InvalidParens);
-            }
 
-            let expr = compute_expr(lexer, 0)?;
+        Token::String(s) => {
+            if lexer.peek() == Token::LParen {
+                //A function call
+                lexer.next(); //Consume "("
 
-            if matches!(lexer.next(), Token::RParen) {
-                Ok(Expr::Call {
-                    func,
-                    arg: Box::new(expr),
-                })
+                let expr = compute_expr(lexer, 1)?;
+
+                if lexer.next() == Token::RParen {
+                    Ok(Expr::Call {
+                        func: s,
+                        arg: Box::new(expr),
+                    })
+                } else {
+                    Err(Error::InvalidParens)
+                }
             } else {
-                Err(Error::InvalidParens)
+                //A variable
+                Ok(Expr::Var(s))
             }
         }
-        Token::Ident(Ident::Var(var)) => Ok(Expr::Var(var)),
+
         Token::Number(n) => Ok(Expr::Const(n)),
         t => Err(Error::AtomExpected(t)),
     }
@@ -71,8 +76,8 @@ fn compute_expr(lexer: &mut Lexer, min_prec: usize) -> Result<Expr, Error> {
     Ok(atom_lhs)
 }
 
-pub fn parse(input: &str, ctx: Option<&Ctx>) -> Result<Expr, Error> {
-    let mut lexer = Lexer::new(input, ctx)?;
+pub fn parse(input: &str) -> Result<Expr, Error> {
+    let mut lexer = Lexer::new(input)?;
     compute_expr(&mut lexer, 1)
 }
 
@@ -81,13 +86,13 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
         .split_once("=")
         .ok_or_else(|| Error::InvalidFunc("no \"=\" found".to_string()))?;
 
-    let mut lhs_tokens = parse_string(lhs, None, true)?;
+    let mut lhs_tokens = parse_string(lhs)?;
 
     let items = capture!(
         lhs_tokens,
-        [Token::Ident(Ident::Unknown(_)) | Token::Number(_)],
+        [Token::String(_) | Token::Number(_)],
         Token::LParen,
-        [Token::Ident(Ident::Unknown(_))],
+        [Token::String(_)],
         Token::RParen
     )
     .ok_or_else(|| Error::InvalidFunc("invalid function signature".to_string()))?;
@@ -95,8 +100,8 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
     let func_name = items[0]
         .iter()
         .try_fold(String::new(), |mut acc, value| match value {
-            Token::Ident(Ident::Unknown(c)) => {
-                acc.push(*c);
+            Token::String(s) => {
+                acc.push_str(s);
                 Ok(acc)
             }
             Token::Number(n) => {
@@ -108,7 +113,7 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
                     ))
                 }
             }
-            _ => unreachable!("Only captured Ident and Number"),
+            _ => unreachable!("Only captured String and Number"),
         })?;
 
     if func_name.is_empty() {
@@ -118,20 +123,14 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
     let func_arg = items[1]
         .iter()
         .fold(String::new(), |mut acc, value| match value {
-            Token::Ident(Ident::Unknown(c)) => {
-                acc.push(*c);
+            Token::String(s) => {
+                acc.push_str(s);
                 acc
             }
-            _ => unreachable!("Only captured Ident"),
+            _ => unreachable!("Only captured String"),
         });
 
-    let ctx = {
-        let mut ctx = Ctx::new();
-        ctx.add_var(func_arg.as_str());
-        ctx
-    };
-
-    let expr = parse(rhs, Some(&ctx))?;
+    let expr = parse(rhs)?;
 
     Ok(Func::new(func_name.as_str(), func_arg.as_str(), expr))
 }

@@ -1,4 +1,4 @@
-use crate::{Ctx, Error, Rational};
+use crate::{Error, Rational};
 
 #[derive(Debug, PartialEq)]
 pub enum Assoc {
@@ -6,7 +6,7 @@ pub enum Assoc {
     Right,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Op {
     Add,
     Sub,
@@ -37,27 +37,10 @@ impl std::fmt::Display for Op {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Ident {
-    Var(String),
-    Func(String),
-    Unknown(char),
-}
-
-impl std::fmt::Display for Ident {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Ident::Func(v) => write!(f, "Func: {}", v),
-            Ident::Var(v) => write!(f, "Var: {}", v),
-            Ident::Unknown(v) => write!(f, "Unknown: {}", v),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Number(Rational),
-    Ident(Ident),
+    String(String),
     Op(Op),
     RParen,
     LParen,
@@ -68,7 +51,7 @@ impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Number(n) => write!(f, "{}", n),
-            Token::Ident(i) => write!(f, "{}", i),
+            Token::String(s) => write!(f, "{}", s),
             Token::Op(o) => write!(f, "{}", o),
             Token::RParen => write!(f, ")"),
             Token::LParen => write!(f, "("),
@@ -83,13 +66,13 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(input: &str, ctx: Option<&Ctx>) -> Result<Self, Error> {
+    pub fn new(input: &str) -> Result<Self, Error> {
         let filtered = input
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
 
-        let mut parsed = parse_string(&filtered, ctx, false)?;
+        let mut parsed = parse_string(&filtered)?;
         parsed.reverse();
 
         Ok(Self { tokens: parsed })
@@ -110,33 +93,9 @@ impl Lexer {
     }
 }
 
-pub(crate) fn parse_string(
-    str: &str,
-    ctx: Option<&Ctx>,
-    allow_unknown: bool,
-) -> Result<Vec<Token>, Error> {
-    let mut res = Vec::new();
+pub(crate) fn parse_string(str: &str) -> Result<Vec<Token>, Error> {
+    let mut tokens = Vec::new();
     let mut index = 0;
-
-    let (funcs, vars) = match ctx {
-        Some(c) => (c.get_funcs_names(), c.get_vars_names()),
-        None => (vec![], vec![]),
-    };
-
-    let overlap: Vec<_> = funcs
-        .iter()
-        .filter_map(|func| {
-            if vars.contains(func) {
-                Some(func.to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    if !overlap.is_empty() {
-        return Err(Error::OverlapElements(overlap));
-    }
 
     while index < str.len() {
         let char = match str.chars().nth(index) {
@@ -144,42 +103,54 @@ pub(crate) fn parse_string(
             None => break, //Should be unreachable
         };
 
-        let token = if let Some(func) = next_segment_in(str, &mut index, &funcs) {
-            Token::Ident(Ident::Func(func))
-        } else if let Some(var) = next_segment_in(str, &mut index, &vars) {
-            Token::Ident(Ident::Var(var))
-        } else {
-            match char {
-                '+' => Token::Op(Op::Add),
-                '-' => Token::Op(Op::Sub),
-                '*' => Token::Op(Op::Mul),
-                '/' => Token::Op(Op::Div),
-                '^' => Token::Op(Op::Exp),
-                '(' => Token::LParen,
-                ')' => Token::RParen,
-                '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
-                ' ' => {
-                    index += 1;
-                    continue;
-                }
-                c => {
-                    if allow_unknown {
-                        Token::Ident(Ident::Unknown(c))
-                    } else {
-                        return Err(Error::InvalidCharacter(index, c));
-                    }
-                }
+        let token = match char {
+            ' ' => {
+                index += 1;
+                continue;
+            }
+            '+' => Token::Op(Op::Add),
+            '-' => Token::Op(Op::Sub),
+            '*' => Token::Op(Op::Mul),
+            '/' => Token::Op(Op::Div),
+            '^' => Token::Op(Op::Exp),
+            '(' => Token::LParen,
+            ')' => Token::RParen,
+            '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
+            //A specific token for char would add extra complexity.
+            c => Token::String(c.to_string()),
+        };
+
+        // Only increase the index if token isn't a number
+        // Since index was already increased
+        if !matches!(token, Token::Number(_)) {
+            index += 1;
+        }
+        tokens.push(token);
+    }
+
+    let mut res = Vec::with_capacity(tokens.len());
+    let mut iter = tokens.into_iter().peekable();
+
+    while let Some(token) = iter.next() {
+        let mut buffer = match token {
+            Token::String(s) => s,
+            _ => {
+                res.push(token);
+                continue;
             }
         };
 
-        // Only increase the index if token isn't a number, a var nor a func
-        // Since index was already increased
-        if !matches!(token, Token::Number(_) | Token::Ident(_))
-            || matches!(token, Token::Ident(Ident::Unknown(_)))
-        {
-            index += 1;
+        while let Some(next) = iter.peek() {
+            match next {
+                Token::String(s) => {
+                    buffer.push_str(s);
+                    iter.next();
+                }
+                _ => break,
+            }
         }
-        res.push(token);
+
+        res.push(Token::String(buffer));
     }
 
     Ok(res)
