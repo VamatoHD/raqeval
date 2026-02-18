@@ -15,6 +15,8 @@ pub enum Error {
     //Expr
     InvalidFunc(String),
     InvalidVar(String),
+
+    RecursiveFunc(String),
 }
 
 impl std::fmt::Display for Error {
@@ -29,6 +31,7 @@ impl std::fmt::Display for Error {
             Error::TwoDots(i) => write!(f, "invalid dot at index {}", i),
             Error::InvalidFunc(func) => write!(f, "invalid func: {}", func),
             Error::InvalidVar(v) => write!(f, "invalid var: {}", v),
+            Error::RecursiveFunc(func) => write!(f, "recursive func: {}", func),
         }
     }
 }

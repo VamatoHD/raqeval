@@ -132,5 +132,5 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
 
     let expr = parse(rhs)?;
 
-    Ok(Func::new(func_name.as_str(), func_arg.as_str(), expr))
+    Ok(Func::new(func_name, func_arg, expr))
 }
