@@ -1,3 +1,5 @@
+pub mod consts;
+
 mod gcd;
 use gcd::gdc_nonzerou128 as gcd;
 

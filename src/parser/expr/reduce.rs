@@ -12,14 +12,7 @@ impl Expr {
                 if let Const(a) = lhs
                     && let Const(b) = rhs
                 {
-                    let res = match op {
-                        Op::Add => a + b,
-                        Op::Sub => a - b,
-                        Op::Mul => a * b,
-                        Op::Div => a / b,
-                        _ => unimplemented!(),
-                    };
-
+                    let res = op.apply(a, b);
                     Const(res)
                 } else {
                     Expr::Infix {
