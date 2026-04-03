@@ -8,7 +8,7 @@ fn main() {
     ctx.add_func(f).unwrap();
     ctx.add_func(g).unwrap();
 
-    let res = raqeval::parse("g(f(2))").unwrap();
+    let res = raqeval::parse("g(f(x))").unwrap();
 
     if res.is_infinite(&ctx) {
         panic!("Infinite recursion")

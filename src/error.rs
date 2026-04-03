@@ -15,6 +15,7 @@ pub enum Error {
     //Expr
     InvalidFunc(String),
     InvalidVar(String),
+    AssignBuiltinFunc(String),
 
     RecursiveFunc(String),
 }
@@ -31,6 +32,9 @@ impl std::fmt::Display for Error {
             Error::TwoDots(i) => write!(f, "invalid dot at index {}", i),
             Error::InvalidFunc(func) => write!(f, "invalid func: {}", func),
             Error::InvalidVar(v) => write!(f, "invalid var: {}", v),
+            Error::AssignBuiltinFunc(func) => {
+                write!(f, "tried assign builtin function: {}", func)
+            }
             Error::RecursiveFunc(func) => write!(f, "recursive func: {}", func),
         }
     }

@@ -1,8 +1,8 @@
 use super::Expr;
-use crate::{Ctx, Error, lexer::Op};
+use crate::{Ctx, Error, Func, lexer::Op};
 
 impl Expr {
-    pub fn reduce(self, ctx: &Ctx) -> Result<Expr, Error> {
+    pub fn reduce(&self, ctx: &Ctx) -> Result<Expr, Error> {
         Ok(match self {
             Expr::Infix { lhs, op, rhs } => {
                 let lhs = lhs.reduce(ctx)?;
@@ -17,7 +17,7 @@ impl Expr {
                 } else {
                     Expr::Infix {
                         lhs: Box::new(lhs),
-                        op,
+                        op: op.clone(),
                         rhs: Box::new(rhs),
                     }
                 }
@@ -25,10 +25,12 @@ impl Expr {
             Expr::Call { func, arg } => {
                 let func = ctx
                     .get_func(&func)
-                    .ok_or_else(|| Error::InvalidFunc(func))?;
+                    .ok_or_else(|| Error::InvalidFunc(func.clone()))?;
 
-                let func_expr = &func.expr;
-                let func_arg = &func.arg;
+                let (func_expr, func_arg) = match func {
+                    Func::Builtin { name } => return Ok(self.clone()),
+                    Func::Defined { expr, arg, .. } => (expr, arg),
+                };
 
                 let expanded = func_expr
                     .replace_var(func_arg, arg.as_ref())
@@ -36,7 +38,7 @@ impl Expr {
 
                 expanded.reduce(ctx)?
             }
-            v => v,
+            v => v.clone(),
         })
     }
 }

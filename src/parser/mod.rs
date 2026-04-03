@@ -2,6 +2,7 @@ mod expr;
 pub use expr::Expr;
 
 mod func;
+pub(crate) use func::BUILTINS;
 pub use func::Func;
 
 pub mod lexer;
