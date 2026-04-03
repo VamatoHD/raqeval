@@ -8,12 +8,12 @@ fn main() {
     ctx.add_func(f).unwrap();
     ctx.add_func(g).unwrap();
 
-    let res = raqeval::parse("g(f(x))").unwrap();
+    let res = raqeval::parse("ln(2/x)").unwrap();
 
     if res.is_infinite(&ctx) {
         panic!("Infinite recursion")
     } else {
-        println!("{:?}", &res);
+        dbg!(&res);
         println!("{}", &res);
         println!("{}", res.reduce(&ctx).unwrap());
     }

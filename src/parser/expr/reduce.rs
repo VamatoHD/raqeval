@@ -22,22 +22,12 @@ impl Expr {
                     }
                 }
             }
-            Expr::Call { func, arg } => {
-                let func = ctx
-                    .get_func(&func)
-                    .ok_or_else(|| Error::InvalidFunc(func.clone()))?;
 
-                let (func_expr, func_arg) = match func {
-                    Func::Builtin { name } => return Ok(self.clone()),
-                    Func::Defined { expr, arg, .. } => (expr, arg),
-                };
+            Expr::Call { func, arg } => ctx
+                .get_func(&func)
+                .ok_or_else(|| Error::InvalidFunc(func.clone()))?
+                .reduce(arg.reduce(ctx)?, ctx)?,
 
-                let expanded = func_expr
-                    .replace_var(func_arg, arg.as_ref())
-                    .unwrap_or_else(|| func_expr.clone());
-
-                expanded.reduce(ctx)?
-            }
             v => v.clone(),
         })
     }

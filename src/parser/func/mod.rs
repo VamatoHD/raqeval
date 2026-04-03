@@ -1,6 +1,8 @@
 use crate::{Ctx, Expr};
 
-pub const BUILTINS: [&str; 3] = ["sin", "cos", "tan"];
+pub const BUILTINS: [&str; 4] = ["sin", "cos", "tan", "ln"];
+
+mod impls;
 
 #[derive(Debug)]
 pub enum Func {
