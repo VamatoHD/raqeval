@@ -1,8 +1,7 @@
 use crate::{Ctx, Expr};
 
-pub const BUILTINS: [&str; 4] = ["sin", "cos", "tan", "ln"];
-
-mod impls;
+mod builtin;
+pub use builtin::Builtin;
 
 #[derive(Debug)]
 pub enum Func {
@@ -13,23 +12,23 @@ pub enum Func {
         expr: Expr,
     },
     Builtin {
-        name: String,
+        inner: Builtin,
     },
 }
 
 impl Func {
     pub fn new(name: String, arg: String, expr: Expr) -> Func {
-        if BUILTINS.contains(&name.as_str()) {
-            Func::Builtin { name }
+        if let Some(v) = Builtin::from_str(name.as_str()) {
+            Func::Builtin { inner: v }
         } else {
             Func::Defined { name, arg, expr }
         }
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn get_name(&self) -> String {
         match self {
-            Func::Defined { name, .. } => name.as_str(),
-            Func::Builtin { name, .. } => name.as_str(),
+            Func::Defined { name, .. } => name.clone(),
+            Func::Builtin { inner, .. } => inner.to_string(),
         }
     }
 

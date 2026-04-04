@@ -23,10 +23,28 @@ impl Expr {
                 }
             }
 
-            Expr::Call { func, arg } => ctx
-                .get_func(&func)
-                .ok_or_else(|| Error::InvalidFunc(func.clone()))?
-                .reduce(arg.reduce(ctx)?, ctx)?,
+            Expr::Call { func, arg } => {
+                let func_obj = ctx
+                    .get_func(&func)
+                    .ok_or_else(|| Error::InvalidFunc(func.clone()))?;
+
+                let reduced_arg = arg.reduce(ctx)?;
+
+                match func_obj {
+                    Func::Builtin { inner } => {
+                        inner
+                            .reduce(&reduced_arg, ctx)
+                            .unwrap_or_else(|| Expr::Call {
+                                func: func.clone(),
+                                arg: Box::new(reduced_arg),
+                            })
+                    }
+                    Func::Defined { arg, expr, .. } => expr
+                        .replace_var(arg, &reduced_arg)
+                        .unwrap_or_else(|| expr.clone())
+                        .reduce(ctx)?,
+                }
+            }
 
             v => v.clone(),
         })

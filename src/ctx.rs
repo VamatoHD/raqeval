@@ -1,16 +1,11 @@
-use crate::{BUILTINS, Error, Expr, Func};
+use crate::{Builtin, Error, Expr, Func};
 use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
-static BUILTIN_FUNCS: LazyLock<HashMap<String, Func>> = LazyLock::new(|| {
+static BUILTIN_FUNCS: LazyLock<HashMap<Builtin, Func>> = LazyLock::new(|| {
     let mut map = HashMap::new();
-    for name in BUILTINS {
-        map.insert(
-            name.to_string(),
-            Func::Builtin {
-                name: name.to_string(),
-            },
-        );
+    for v in Builtin::ALL {
+        map.insert(v.clone(), Func::Builtin { inner: v.clone() });
     }
     map
 });
@@ -30,7 +25,7 @@ impl Ctx {
 
     pub fn add_func(&mut self, func: Func) -> Result<(), Error> {
         match &func {
-            Func::Builtin { name, .. } => Err(Error::AssignBuiltinFunc(name.clone())),
+            Func::Builtin { inner, .. } => Err(Error::AssignBuiltinFunc(inner.to_string())),
             Func::Defined { name, expr, .. } => {
                 if self.vars.contains(name) {
                     Err(Error::OverlapElements(vec![name.clone()]))
@@ -43,7 +38,12 @@ impl Ctx {
     }
 
     pub fn get_func(&self, name: &String) -> Option<&Func> {
-        BUILTIN_FUNCS.get(name).or_else(|| self.funcs.get(name))
+        if let Some(v) = Builtin::from_str(name.as_str()) {
+            BUILTIN_FUNCS.get(&v)
+        } else {
+            None
+        }
+        .or_else(|| self.funcs.get(name))
     }
 
     pub fn get_funcs_names(&self) -> Vec<&str> {
