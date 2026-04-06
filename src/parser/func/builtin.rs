@@ -1,4 +1,6 @@
-use crate::{Ctx, Error, Expr, lexer::Op};
+use core::num;
+
+use crate::{Ctx, Error, Expr, Rational, lexer::Op};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Builtin {
@@ -26,28 +28,28 @@ impl Builtin {
     pub fn reduce(&self, call_arg: &Expr, ctx: &Ctx) -> Option<Expr> {
         match self {
             Builtin::Ln => match call_arg {
-                Expr::Infix { lhs, op, rhs } if matches!(op, Op::Mul) => Some(Expr::Infix {
-                    lhs: Box::new(Expr::Call {
-                        func: "ln".to_string(),
-                        arg: lhs.clone(),
-                    }),
-                    op: Op::Add,
-                    rhs: Box::new(Expr::Call {
-                        func: "ln".to_string(),
-                        arg: rhs.clone(),
-                    }),
-                }),
-                Expr::Infix { lhs, op, rhs } if matches!(op, Op::Div) => Some(Expr::Infix {
-                    lhs: Box::new(Expr::Call {
-                        func: "ln".to_string(),
-                        arg: lhs.clone(),
-                    }),
-                    op: Op::Sub,
-                    rhs: Box::new(Expr::Call {
-                        func: "ln".to_string(),
-                        arg: rhs.clone(),
-                    }),
-                }),
+                // ln(a*b) = ln(a) + ln(b)
+                // ln(a/b) = ln(a) - ln(b)
+                Expr::Infix { lhs, op, rhs } if matches!(op, Op::Mul | Op::Div) => {
+                    Some(Expr::Infix {
+                        lhs: Box::new(Expr::Call {
+                            func: "ln".to_string(),
+                            arg: lhs.clone(),
+                        }),
+                        op: if matches!(op, Op::Mul) {
+                            Op::Add
+                        } else {
+                            Op::Sub
+                        },
+                        rhs: Box::new(Expr::Call {
+                            func: "ln".to_string(),
+                            arg: rhs.clone(),
+                        }),
+                    })
+                }
+
+                //ln(1) = 0
+                Expr::Const(number) if number == 1u8 => Some(Expr::Const(Rational::zero())),
                 _ => None,
             },
             _ => None,

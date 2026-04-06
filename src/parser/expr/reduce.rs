@@ -32,12 +32,18 @@ impl Expr {
 
                 match func_obj {
                     Func::Builtin { inner } => {
-                        inner
-                            .reduce(&reduced_arg, ctx)
-                            .unwrap_or_else(|| Expr::Call {
+                        let reduced = inner.reduce(&reduced_arg, ctx);
+
+                        match reduced {
+                            // Reduce the expression originated
+                            Some(expr) => expr.reduce(ctx)?,
+                            // Otherwise return itself
+                            // func is a builtin, so no reducing
+                            None => Expr::Call {
                                 func: func.clone(),
                                 arg: Box::new(reduced_arg),
-                            })
+                            },
+                        }
                     }
                     Func::Defined { arg, expr, .. } => expr
                         .replace_var(arg, &reduced_arg)
