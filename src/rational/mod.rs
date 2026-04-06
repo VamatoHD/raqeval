@@ -3,8 +3,7 @@ pub mod consts;
 mod gcd;
 use gcd::gdc_nonzerou128 as gcd;
 
-mod unsigned;
-use unsigned::Unsigned;
+mod numbers;
 
 use core::num::NonZeroU128;
 
@@ -13,10 +12,11 @@ use crate::Error;
 #[macro_use]
 mod macros;
 
+use macros::impl_ops;
 pub(crate) use macros::rat;
 use macros::to_nonzeroU128;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Rational {
     //Numerator
     num: u128,
@@ -27,19 +27,21 @@ pub struct Rational {
 }
 
 impl Rational {
+    pub const ZERO: Rational = Rational {
+        num: 0,
+        // Safety: 1 is non-zero
+        den: to_nonzeroU128!(1),
+        neg: false,
+    };
+
+    pub const fn zero() -> Self {
+        Self::ZERO
+    }
+
     fn from_nonzero(num: u128, den: NonZeroU128, neg: bool) -> Self {
         let mut new = Self { num, den, neg };
         new.reduce_in_place();
         new
-    }
-
-    pub const fn zero() -> Self {
-        // Safety: 1 is non-zero
-        Self {
-            num: 0,
-            den: to_nonzeroU128!(1),
-            neg: false,
-        }
     }
 
     pub fn new(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
@@ -99,13 +101,19 @@ impl Rational {
     }
 
     #[inline]
-    pub const fn is_integer(self) -> bool {
+    pub const fn is_integer(&self) -> bool {
         self.den.get() == 1
     }
 
     #[inline]
-    pub const fn is_neg(self) -> bool {
+    pub const fn is_neg(&self) -> bool {
         self.neg
+    }
+}
+
+impl Default for Rational {
+    fn default() -> Self {
+        Self::ZERO
     }
 }
 
@@ -169,17 +177,28 @@ impl std::ops::Sub for Rational {
     }
 }
 
+impl std::ops::Neg for &Rational {
+    type Output = Rational;
+    fn neg(self) -> Self::Output {
+        Rational {
+            num: self.num,
+            den: self.den,
+            neg: !self.neg && self.num != 0,
+        }
+    }
+}
+
 impl std::ops::Neg for Rational {
     type Output = Self;
-    fn neg(self) -> Self::Output {
-        let mut new = self.clone();
-        new.neg = !new.neg && new.num != 0;
-        new
+    fn neg(mut self) -> Self::Output {
+        self.neg = !self.neg && self.num != 0;
+        self
     }
 }
 
 impl std::ops::Div for Rational {
     type Output = Self;
+    #[inline]
     fn div(self, rhs: Self) -> Self::Output {
         self.checked_div(rhs).expect("division by zero")
     }
@@ -195,6 +214,11 @@ impl PartialEq for Rational {
             })
     }
 }
+
+impl_ops!(Add, add);
+impl_ops!(Sub, sub);
+impl_ops!(Mul, mul);
+impl_ops!(Div, div);
 
 #[cfg(test)]
 mod tests {

@@ -41,5 +41,37 @@ macro_rules! to_nonzeroU128 {
     ($x:expr) => {{ ::core::num::NonZeroU128::new($x).expect("Is non-zero") }};
 }
 
+macro_rules! impl_ops {
+    ($op_trait:ident, $op_fn:ident) => {
+        // &Rational + &Rational
+        impl std::ops::$op_trait<&Rational> for &Rational {
+            type Output = Rational;
+            #[inline]
+            fn $op_fn(self, rhs: &Rational) -> Self::Output {
+                self.clone().$op_fn(rhs.clone())
+            }
+        }
+
+        // Rational + &Rational
+        impl std::ops::$op_trait<&Rational> for Rational {
+            type Output = Rational;
+            #[inline]
+            fn $op_fn(self, rhs: &Rational) -> Self::Output {
+                self.$op_fn(rhs.clone())
+            }
+        }
+
+        // &Rational + Rational
+        impl std::ops::$op_trait<Rational> for &Rational {
+            type Output = Rational;
+            #[inline]
+            fn $op_fn(self, rhs: Rational) -> Self::Output {
+                self.clone().$op_fn(rhs)
+            }
+        }
+    };
+}
+
+pub(super) use impl_ops;
 pub(crate) use rat;
 pub(super) use to_nonzeroU128;

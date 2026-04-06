@@ -9,8 +9,8 @@ impl Expr {
                 let rhs = rhs.reduce(ctx)?;
 
                 use Expr::Const;
-                if let Const(a) = lhs
-                    && let Const(b) = rhs
+                if let Const(ref a) = lhs
+                    && let Const(ref b) = rhs
                 {
                     let res = op.apply(a, b);
                     Const(res)
