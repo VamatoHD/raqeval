@@ -24,7 +24,7 @@ impl Op {
         }
     }
 
-    pub fn apply(&self, a: Rational, b: Rational) -> Rational {
+    pub fn apply(&self, a: &Rational, b: &Rational) -> Rational {
         match self {
             Op::Add => a + b,
             Op::Sub => a - b,

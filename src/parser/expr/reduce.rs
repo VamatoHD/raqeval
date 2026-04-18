@@ -1,42 +1,58 @@
 use super::Expr;
-use crate::{Ctx, Error, lexer::Op};
+use crate::{Ctx, Error, Func, lexer::Op};
 
 impl Expr {
-    pub fn reduce(self, ctx: &Ctx) -> Result<Expr, Error> {
+    pub fn reduce(&self, ctx: &Ctx) -> Result<Expr, Error> {
         Ok(match self {
             Expr::Infix { lhs, op, rhs } => {
                 let lhs = lhs.reduce(ctx)?;
                 let rhs = rhs.reduce(ctx)?;
 
                 use Expr::Const;
-                if let Const(a) = lhs
-                    && let Const(b) = rhs
+                if let Const(ref a) = lhs
+                    && let Const(ref b) = rhs
                 {
                     let res = op.apply(a, b);
                     Const(res)
                 } else {
                     Expr::Infix {
                         lhs: Box::new(lhs),
-                        op,
+                        op: op.clone(),
                         rhs: Box::new(rhs),
                     }
                 }
             }
+
             Expr::Call { func, arg } => {
-                let func = ctx
+                let func_obj = ctx
                     .get_func(&func)
-                    .ok_or_else(|| Error::InvalidFunc(func))?;
+                    .ok_or_else(|| Error::InvalidFunc(func.clone()))?;
 
-                let func_expr = &func.expr;
-                let func_arg = &func.arg;
+                let reduced_arg = arg.reduce(ctx)?;
 
-                let expanded = func_expr
-                    .replace_var(func_arg, arg.as_ref())
-                    .unwrap_or_else(|| func_expr.clone());
+                match func_obj {
+                    Func::Builtin { inner } => {
+                        let reduced = inner.reduce(&reduced_arg, ctx);
 
-                expanded.reduce(ctx)?
+                        match reduced {
+                            // Reduce the expression originated
+                            Some(expr) => expr.reduce(ctx)?,
+                            // Otherwise return itself
+                            // func is a builtin, so no reducing
+                            None => Expr::Call {
+                                func: func.clone(),
+                                arg: Box::new(reduced_arg),
+                            },
+                        }
+                    }
+                    Func::Defined { arg, expr, .. } => expr
+                        .replace_var(arg, &reduced_arg)
+                        .unwrap_or_else(|| expr.clone())
+                        .reduce(ctx)?,
+                }
             }
-            v => v,
+
+            v => v.clone(),
         })
     }
 }
