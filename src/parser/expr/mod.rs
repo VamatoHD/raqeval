@@ -1,4 +1,4 @@
-use crate::{Ctx, Rational, lexer::Op};
+use crate::{Ctx, Func, Rational, lexer::Op};
 
 mod reduce;
 mod replace;
@@ -30,41 +30,73 @@ impl std::fmt::Display for Expr {
 }
 
 impl Expr {
-    pub fn find_all<F>(&self, pred: F) -> Vec<&Expr>
-    where
-        F: Fn(&Expr) -> bool,
-    {
-        let mut queue = vec![self];
-        let mut result = vec![];
-
-        while let Some(next) = queue.pop() {
-            if pred(next) {
-                result.push(next);
-            }
-            match next {
-                Expr::Infix { lhs, op: _, rhs } => {
-                    queue.push(lhs);
-                    queue.push(rhs);
-                }
-                Expr::Call { func: _, arg } => {
-                    queue.push(arg);
-                }
-                _ => continue,
-            }
-        }
-
-        result
-    }
-
     pub fn is_infinite(&self, ctx: &Ctx) -> bool {
         //TODO: Filter out duplicated functions
-
-        self.find_all(|expr| matches!(expr, Expr::Call { func: _, arg: _ }))
-            .iter()
+        self.into_iter()
             .filter_map(|expr| match expr {
-                Expr::Call { func, arg: _ } => ctx.get_func(func),
-                _ => None, //unreachable!()
+                Expr::Call { func, .. } => ctx.get_func(func),
+                _ => None,
             })
             .any(|func| func.is_recursive(ctx))
+    }
+
+    pub fn is_numeric(&self, ctx: Option<&Ctx>) -> bool {
+        self.into_iter().all(|expr| match dbg!(expr) {
+            Expr::Var(_) => false, //Isn't numeric if there is a variable
+            Expr::Call { func, .. } => match expr.get_inner_func(ctx) {
+                Some(Func::Defined { expr, .. }) => expr.is_numeric(ctx),
+                _ => true,
+            },
+            _ => true,
+        })
+    }
+
+    #[inline]
+    fn get_inner_func<'a>(&self, ctx: Option<&'a Ctx>) -> Option<&'a Func> {
+        let Some(ctx) = ctx else { return None };
+        match self {
+            Expr::Call { func, .. } => ctx.get_func(func),
+            _ => None,
+        }
+    }
+}
+
+pub struct ExprIter<'a> {
+    stack: Vec<&'a Expr>,
+}
+
+impl<'a> Iterator for ExprIter<'a> {
+    type Item = &'a Expr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let cur = self.stack.pop()?;
+
+        match cur {
+            Expr::Infix { lhs, rhs, .. } => {
+                self.stack.push(rhs);
+                self.stack.push(lhs);
+            }
+            Expr::Call { arg, .. } => {
+                self.stack.push(arg);
+            }
+            _ => (),
+        }
+
+        Some(cur)
+    }
+}
+
+impl<'a> IntoIterator for &'a Expr {
+    type Item = &'a Expr;
+    type IntoIter = ExprIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ExprIter { stack: vec![self] }
+    }
+}
+
+impl<'a> ExprIter<'a> {
+    pub fn push(&mut self, value: &'a Expr) {
+        self.stack.push(value);
     }
 }
