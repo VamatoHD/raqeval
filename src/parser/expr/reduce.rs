@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Ctx, Error, Func, lexer::Op};
+use crate::{Ctx, Error};
 
 impl Expr {
     pub fn reduce(&self, ctx: &Ctx) -> Result<Expr, Error> {
@@ -8,12 +8,12 @@ impl Expr {
                 let lhs = lhs.reduce(ctx)?;
                 let rhs = rhs.reduce(ctx)?;
 
-                use Expr::Const;
-                if let Const(ref a) = lhs
-                    && let Const(ref b) = rhs
+                use Expr::Number;
+                if let Number(ref a) = lhs
+                    && let Number(ref b) = rhs
                 {
                     let res = op.apply(a, b);
-                    Const(res)
+                    Number(res)
                 } else {
                     Expr::Infix {
                         lhs: Box::new(lhs),
@@ -23,33 +23,17 @@ impl Expr {
                 }
             }
 
-            Expr::Call { func, arg } => {
+            Expr::Call { func, args } => {
                 let func_obj = ctx
                     .get_func(&func)
                     .ok_or_else(|| Error::InvalidFunc(func.clone()))?;
 
-                let reduced_arg = arg.reduce(ctx)?;
+                let reduced_args = args
+                    .iter()
+                    .map(|arg| arg.reduce(ctx))
+                    .collect::<Result<Vec<Expr>, Error>>()?;
 
-                match func_obj {
-                    Func::Builtin { inner } => {
-                        let reduced = inner.reduce(&reduced_arg, ctx);
-
-                        match reduced {
-                            // Reduce the expression originated
-                            Some(expr) => expr.reduce(ctx)?,
-                            // Otherwise return itself
-                            // func is a builtin, so no reducing
-                            None => Expr::Call {
-                                func: func.clone(),
-                                arg: Box::new(reduced_arg),
-                            },
-                        }
-                    }
-                    Func::Defined { arg, expr, .. } => expr
-                        .replace_var(arg, &reduced_arg)
-                        .unwrap_or_else(|| expr.clone())
-                        .reduce(ctx)?,
-                }
+                func_obj.apply_args(&reduced_args).reduce(ctx)?
             }
 
             v => v.clone(),

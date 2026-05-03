@@ -1,11 +1,12 @@
-use crate::{Ctx, Func, Rational, lexer::Op};
+use crate::{Consts, Ctx, Func, Rational, lexer::Op};
 
 mod reduce;
 mod replace;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Const(Rational),
+    Const(Consts),
+    Number(Rational),
     Var(String),
     Infix {
         lhs: Box<Expr>,
@@ -14,6 +15,10 @@ pub enum Expr {
     },
     Call {
         func: String,
+        args: Vec<Expr>,
+    },
+    Log {
+        base: Box<Expr>,
         arg: Box<Expr>,
     },
 }
@@ -21,16 +26,34 @@ pub enum Expr {
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Expr::Const(v) => write!(f, "{}", v),
+            Expr::Const(c) => write!(f, "{}", c),
+            Expr::Number(v) => write!(f, "{}", v),
             Expr::Var(v) => write!(f, "{}", v),
             Expr::Infix { lhs, op, rhs } => write!(f, "({} {} {})", lhs, op, rhs),
-            Expr::Call { func, arg } => write!(f, "{}({})", func, arg),
+            Expr::Call { func, args } => {
+                if args.len() == 0 {
+                    write!(f, "{}()", func)
+                } else {
+                    let concat = args
+                        .iter()
+                        .map(|arg| arg.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ");
+                    write!(f, "{}({})", func, concat)
+                }
+            }
+            Expr::Log { base, arg } => {
+                //TODO: Ignore base if is equal to 10
+                write!(f, "log({}, {})", base, arg)
+            }
+            _ => todo!(),
         }
     }
 }
 
 impl Expr {
     pub fn is_infinite(&self, ctx: &Ctx) -> bool {
+        //BROKEN
         //TODO: Filter out duplicated functions
         self.into_iter()
             .filter_map(|expr| match expr {
@@ -41,10 +64,11 @@ impl Expr {
     }
 
     pub fn is_numeric(&self, ctx: Option<&Ctx>) -> bool {
+        //BROKEN
         self.into_iter().all(|expr| match dbg!(expr) {
             Expr::Var(_) => false, //Isn't numeric if there is a variable
-            Expr::Call { func, .. } => match expr.get_inner_func(ctx) {
-                Some(Func::Defined { expr, .. }) => expr.is_numeric(ctx),
+            Expr::Call { func, args } => match expr.get_inner_func(ctx) {
+                Some(func) => func.get_expr().is_numeric(ctx),
                 _ => true,
             },
             _ => true,
@@ -76,8 +100,8 @@ impl<'a> Iterator for ExprIter<'a> {
                 self.stack.push(rhs);
                 self.stack.push(lhs);
             }
-            Expr::Call { arg, .. } => {
-                self.stack.push(arg);
+            Expr::Call { args, .. } => {
+                self.stack.extend(args);
             }
             _ => (),
         }

@@ -1,4 +1,5 @@
-pub mod consts;
+mod consts;
+pub use consts::Consts;
 
 mod gcd;
 use gcd::gdc_nonzerou128 as gcd;
@@ -12,7 +13,6 @@ use crate::Error;
 #[macro_use]
 mod macros;
 
-use macros::impl_ops;
 pub(crate) use macros::rat;
 use macros::to_nonzeroU128;
 
