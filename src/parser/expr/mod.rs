@@ -53,7 +53,6 @@ impl std::fmt::Display for Expr {
 
 impl Expr {
     pub fn is_infinite(&self, ctx: &Ctx) -> bool {
-        //BROKEN
         //TODO: Filter out duplicated functions
         self.into_iter()
             .filter_map(|expr| match expr {
@@ -64,23 +63,12 @@ impl Expr {
     }
 
     pub fn is_numeric(&self, ctx: Option<&Ctx>) -> bool {
-        //BROKEN
-        self.into_iter().all(|expr| match dbg!(expr) {
-            Expr::Var(_) => false, //Isn't numeric if there is a variable
-            Expr::Call { func, args } => match expr.get_inner_func(ctx) {
-                Some(func) => func.get_expr().is_numeric(ctx),
-                _ => true,
-            },
-            _ => true,
-        })
-    }
-
-    #[inline]
-    fn get_inner_func<'a>(&self, ctx: Option<&'a Ctx>) -> Option<&'a Func> {
-        let Some(ctx) = ctx else { return None };
         match self {
-            Expr::Call { func, .. } => ctx.get_func(func),
-            _ => None,
+            Expr::Const(_) | Expr::Number(_) => true,
+            Expr::Var(_) => false, // TODO: Update when adding global variables
+            Expr::Infix { lhs, rhs, .. } => lhs.is_numeric(ctx) && rhs.is_numeric(ctx),
+            Expr::Log { base, arg } => base.is_numeric(ctx) && arg.is_numeric(ctx),
+            Expr::Call { func, args } => args.iter().all(|arg| arg.is_numeric(ctx)),
         }
     }
 }

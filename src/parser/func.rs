@@ -38,32 +38,38 @@ impl Func {
     }
 
     pub fn is_recursive(&self, ctx: &Ctx) -> bool {
-        //BROKEN
-        use std::collections::HashSet;
-        let mut visited: HashSet<String> = HashSet::new();
-        let mut to_visit = vec![self.get_expr()];
-
-        while let Some(next) = to_visit.pop() {
-            match next {
-                Expr::Infix { lhs, op, rhs } => {
-                    to_visit.push(lhs);
-                    to_visit.push(rhs);
+        fn dfs(expr: &Expr, ctx: &Ctx, call_stack: &mut Vec<String>) -> bool {
+            match expr {
+                Expr::Const(_) | Expr::Number(_) | Expr::Var(_) => false,
+                Expr::Infix { lhs, rhs, .. } => {
+                    dfs(lhs, ctx, call_stack) || dfs(rhs, ctx, call_stack)
                 }
+                Expr::Log { base, arg } => dfs(base, ctx, call_stack) || dfs(arg, ctx, call_stack),
                 Expr::Call { func, args } => {
-                    if visited.contains(func) {
+                    if call_stack.contains(func) {
                         return true;
-                    } else {
-                        if let Some(func) = ctx.get_func(func) {
-                            to_visit.push(func.get_expr())
-                        }
-                        to_visit.extend(args);
-                        visited.insert(func.clone());
                     }
+
+                    call_stack.push(func.clone());
+                    let has_cycle = if let Some(f) = ctx.get_func(func) {
+                        dfs(f.get_expr(), ctx, call_stack)
+                    } else {
+                        false
+                    };
+
+                    call_stack.pop();
+
+                    if has_cycle {
+                        return true;
+                    }
+
+                    args.iter().any(|arg| dfs(arg, ctx, call_stack))
                 }
-                _ => (),
             }
         }
 
-        false
+        let mut stack = vec![self.get_name().to_string()];
+        dfs(self.get_expr(), ctx, &mut stack)
     }
 }
+
