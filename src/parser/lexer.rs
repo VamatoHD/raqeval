@@ -54,6 +54,7 @@ pub enum Token {
     Op(Op),
     RParen,
     LParen,
+    Comma,
     Eof,
 }
 
@@ -65,6 +66,7 @@ impl std::fmt::Display for Token {
             Token::Op(o) => write!(f, "{}", o),
             Token::RParen => write!(f, ")"),
             Token::LParen => write!(f, "("),
+            Token::Comma => write!(f, ","),
             Token::Eof => write!(f, "Eof"),
         }
     }
@@ -125,6 +127,7 @@ pub(crate) fn parse_string(str: &str) -> Result<Vec<Token>, Error> {
             '^' => Token::Op(Op::Exp),
             '(' => Token::LParen,
             ')' => Token::RParen,
+            ',' => Token::Comma,
             '0'..='9' => Token::Number(parse_number(&str, &mut index)?),
             //A specific token for char would add extra complexity.
             c => Token::String(c.to_string()),

@@ -11,4 +11,4 @@ pub use parser::*;
 
 mod rational;
 pub(crate) use rational::rat;
-pub use rational::{Rational, consts};
+pub use rational::{Consts, Rational};

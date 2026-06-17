@@ -24,10 +24,30 @@ impl Expr {
                     })
                 }
             }
-            Expr::Call { func, arg } => Some(Expr::Call {
-                func: func.to_string(),
-                arg: Box::new(arg.replace_var(var, new)?),
-            }),
+            Expr::Call { func, args } => {
+                let mut new_args: Option<Vec<Expr>> = None;
+
+                for (i, arg) in args.iter().enumerate() {
+                    if let Some(replaced_arg) = arg.replace_var(var, new) {
+                        // Lazily initialize the new vector
+                        let vec = new_args.get_or_insert_with(|| {
+                            let mut v = Vec::with_capacity(args.len());
+                            // Copy all unchanged arguments
+                            v.extend(args[..i].iter().cloned());
+                            v
+                        });
+                        vec.push(replaced_arg);
+                    } else if let Some(vec) = &mut new_args {
+                        // If the vector was already created, push a copy
+                        vec.push(arg.clone());
+                    }
+                }
+
+                new_args.map(|args| Expr::Call {
+                    func: func.clone(),
+                    args,
+                })
+            }
             _ => None,
         }
     }
