@@ -9,17 +9,32 @@ impl Expr {
                 let rhs = rhs.reduce(ctx)?;
 
                 use Expr::Number;
-                if let Number(ref a) = lhs
-                    && let Number(ref b) = rhs
-                {
-                    let res = op.apply(a, b);
-                    Number(res)
-                } else {
-                    Expr::Infix {
-                        lhs: Box::new(lhs),
-                        op: op.clone(),
-                        rhs: Box::new(rhs),
+
+                if let (Number(a), Number(b)) = (&lhs, &rhs) {
+                    return Ok(Number(op.apply(a, b)));
+                }
+
+                match (op, &lhs, &rhs) {
+                    //Left size is zero
+                    (Op::Add, Number(a), v) if a == 0u8 => return Ok(v.clone()),
+                    (Op::Mul | Op::Div, Number(a), _) if a == 0u8 => {
+                        return Ok(Number(Rational::zero()));
                     }
+
+                    //Right side is zero
+                    (Op::Add | Op::Sub, v, Number(a)) if a == 0u8 => return Ok(v.clone()),
+                    (Op::Mul, _, Number(a)) if a == 0u8 => return Ok(Number(Rational::zero())),
+                    (Op::Div, _, Number(a)) if a == 0u8 => return Err(Error::DivisionByZero),
+
+                    //Return default
+                    (Op::Sub, Number(a), _) if a == 0u8 => {}
+                    _ => {}
+                }
+
+                Expr::Infix {
+                    lhs: Box::new(lhs),
+                    op: op.clone(),
+                    rhs: Box::new(rhs),
                 }
             }
 
@@ -60,6 +75,12 @@ impl Expr {
                     arg: Box::new(reduced),
                 },
             },
+
+            // If was inside a function, it would have been replaced by now
+            expr @ Expr::Var(name) => ctx
+                .get_global(name)
+                .cloned()
+                .unwrap_or_else(|| expr.clone()),
 
             // No reduce options
             v => v.clone(),

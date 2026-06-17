@@ -1,4 +1,4 @@
-use crate::{Consts, Ctx, Func, Rational, lexer::Op};
+use crate::{Consts, Ctx, Rational, lexer::Op};
 
 mod reduce;
 mod replace;

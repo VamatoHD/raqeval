@@ -72,4 +72,3 @@ impl Func {
         dfs(self.get_expr(), ctx, &mut stack)
     }
 }
-
