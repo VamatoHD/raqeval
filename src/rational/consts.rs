@@ -1,17 +1,5 @@
 use super::Rational;
-use super::to_nonzeroU128;
-
-macro_rules! const_rational {
-    ($a:literal / $b:literal) => {{
-        const {
-            Rational {
-                num: $a,
-                den: to_nonzeroU128!($b),
-                neg: false,
-            }
-        }
-    }};
-}
+use super::rat;
 
 #[derive(Debug, Clone)]
 pub enum Consts {
@@ -41,8 +29,8 @@ impl Consts {
 
     pub const fn value(&self) -> Rational {
         match self {
-            Consts::E => const_rational!(848456353 / 312129649),
-            Consts::PI => const_rational!(1146408 / 364913),
+            Consts::E => rat!(848456353 / 312129649),
+            Consts::PI => rat!(1146408 / 364913),
         }
     }
 }

@@ -14,7 +14,6 @@ use crate::Error;
 mod macros;
 
 pub(crate) use macros::rat;
-use macros::to_nonzeroU128;
 
 #[derive(Debug, Clone)]
 pub struct Rational {
@@ -30,18 +29,16 @@ impl Rational {
     pub const ZERO: Rational = Rational {
         num: 0,
         // Safety: 1 is non-zero
-        den: to_nonzeroU128!(1),
+        den: match NonZeroU128::new(1) {
+            Some(v) => v,
+            None => panic!("Is non-zero"),
+        },
         neg: false,
     };
 
+    #[inline(always)]
     pub const fn zero() -> Self {
         Self::ZERO
-    }
-
-    fn from_nonzero(num: u128, den: NonZeroU128, neg: bool) -> Self {
-        let mut new = Self { num, den, neg };
-        new.reduce_in_place();
-        new
     }
 
     pub fn new(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
@@ -50,35 +47,62 @@ impl Rational {
             (0, _) => Ok(Self::zero()),
             _ => {
                 let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
-                Ok(Self::from_nonzero(num, den, neg))
+                let mut new = Self { num, den, neg };
+                new.reduce_in_place();
+                Ok(new)
             }
         }
     }
 
-    pub const fn new_unreduced(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
-        match (num, den) {
-            (_, 0) => Err(Error::DivisionByZero),
-            (0, _) => Ok(Self::zero()),
-            _ => match NonZeroU128::new(den) {
-                Some(den) => Ok(Rational { num, den, neg }),
-                None => Err(Error::DivisionByZero),
-            },
+    pub const fn unwrap_new(num: u128, den: u128, neg: bool) -> Self {
+        match NonZeroU128::new(den) {
+            None => panic!("division by zero"),
+            Some(den_nz) => {
+                if num == 0 {
+                    return Self::ZERO;
+                }
+                Self::const_reduce(Rational {
+                    num,
+                    den: den_nz,
+                    neg,
+                })
+            }
         }
+    }
+
+    pub(crate) const fn const_reduce(mut r: Rational) -> Rational {
+        if r.num == 0 {
+            return Self::ZERO;
+        };
+
+        let num_nz = match NonZeroU128::new(r.num) {
+            Some(v) => v,
+            None => return Self::ZERO,
+        };
+
+        let div = gcd(num_nz, r.den);
+        r.num = r.num.wrapping_div(div.get());
+        r.den = match NonZeroU128::new(r.den.get() / div.get()) {
+            Some(v) => v,
+            None => panic!("den became zero after division by gcd — impossible"),
+        };
+
+        r
     }
 
     pub fn reduce_in_place(&mut self) -> &mut Self {
         if self.num == 0 {
             //SAFETY: 1 is non-zero
-            self.den = to_nonzeroU128!(1);
+            self.den = NonZeroU128::new(1).unwrap();
             self.neg = false;
             return self;
         }
         //SAFETY: self.num is non-zero (checked) and so is self.den (non-zero type)
-        let div = gcd(to_nonzeroU128!(self.num), self.den);
+        let div = gcd(NonZeroU128::new(self.num).unwrap(), self.den);
 
         self.num /= div;
         //SAFETY: self.den and div are non-zero
-        self.den = to_nonzeroU128!(self.den.get() / div);
+        self.den = NonZeroU128::new(self.den.get() / div).unwrap();
         self
     }
 
@@ -101,6 +125,15 @@ impl Rational {
     }
 
     #[inline]
+    pub const fn const_neg(self) -> Self {
+        Rational {
+            num: self.num,
+            den: self.den,
+            neg: !self.neg && self.num != 0,
+        }
+    }
+
+    #[inline]
     pub const fn is_integer(&self) -> bool {
         self.den.get() == 1
     }
@@ -112,6 +145,7 @@ impl Rational {
 }
 
 impl Default for Rational {
+    #[inline(always)]
     fn default() -> Self {
         Self::ZERO
     }
@@ -179,20 +213,17 @@ impl std::ops::Sub for Rational {
 
 impl std::ops::Neg for &Rational {
     type Output = Rational;
+    #[inline(always)]
     fn neg(self) -> Self::Output {
-        Rational {
-            num: self.num,
-            den: self.den,
-            neg: !self.neg && self.num != 0,
-        }
+        self.clone().const_neg()
     }
 }
 
 impl std::ops::Neg for Rational {
     type Output = Self;
+    #[inline(always)]
     fn neg(mut self) -> Self::Output {
-        self.neg = !self.neg && self.num != 0;
-        self
+        self.const_neg()
     }
 }
 
@@ -241,12 +272,12 @@ mod tests {
         assert_eq!(rat!(0), -rat!(0));
         assert_eq!(rat!(-1), -rat!(1));
         assert_eq!(
-            Rational::from_nonzero(1, to_nonzeroU128!(1), true),
-            -Rational::from_nonzero(1, to_nonzeroU128!(1), false)
+            Rational::unwrap_new(1, 1, true),
+            -Rational::unwrap_new(1, 1, false),
         );
         assert_ne!(
-            Rational::from_nonzero(1, to_nonzeroU128!(1), true),
-            -Rational::from_nonzero(1, to_nonzeroU128!(1), true)
+            Rational::unwrap_new(1, 1, true),
+            -Rational::unwrap_new(1, 1, true)
         );
         assert_eq!({ -Rational::zero() }.neg, false);
     }
