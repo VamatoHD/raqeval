@@ -26,6 +26,11 @@ impl Expr {
                     (Op::Mul, _, Number(a)) if a == 0u8 => return Ok(Number(Rational::zero())),
                     (Op::Div, _, Number(a)) if a == 0u8 => return Err(Error::DivisionByZero),
 
+                    // Mul and Div by one
+                    (Op::Mul, Number(a), v) if a == 1u8 => return Ok(v.clone()),
+                    (Op::Mul, v, Number(a)) if a == 1u8 => return Ok(v.clone()),
+                    (Op::Div, v, Number(a)) if a == 1u8 => return Ok(v.clone()),
+
                     //Return default
                     (Op::Sub, Number(a), _) if a == 0u8 => {}
                     _ => {}
