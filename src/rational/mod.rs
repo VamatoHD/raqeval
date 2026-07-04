@@ -8,7 +8,7 @@ mod numbers;
 
 use core::num::NonZeroU128;
 
-use crate::Error;
+use crate::{Error, Expr};
 
 #[macro_use]
 mod macros;
@@ -121,6 +121,30 @@ impl Rational {
             let neg = self.neg ^ rhs.neg;
 
             Ok(Self::new(num, den, neg)?)
+        }
+    }
+
+    pub fn pow(&self, other: &Rational) -> Result<Expr, Error> {
+        if !other.is_integer() {
+            return Err(Error::RootsNotImplemented);
+        }
+        let pow: u32 = other.num.try_into().map_err(|_| Error::Overflow)?;
+
+        let new_num = self.num.checked_pow(pow).ok_or_else(|| Error::Overflow)?;
+        let new_den = self
+            .den
+            .get()
+            .checked_pow(pow)
+            .ok_or_else(|| Error::Overflow)?;
+
+        //Check if self is neg and pow is not even
+        let new_neg = self.neg && !(pow % 2 == 0);
+
+        if other.is_neg() {
+            //Invert the new number
+            Rational::new(new_den, new_num, new_neg).map(|r| r.into())
+        } else {
+            Rational::new(new_num, new_den, new_neg).map(|r| r.into())
         }
     }
 

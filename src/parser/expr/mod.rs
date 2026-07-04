@@ -73,6 +73,20 @@ impl Expr {
     }
 }
 
+impl From<Rational> for Expr {
+    #[inline(always)]
+    fn from(value: Rational) -> Self {
+        Expr::Number(value)
+    }
+}
+
+impl From<&Rational> for Expr {
+    #[inline(always)]
+    fn from(value: &Rational) -> Self {
+        Expr::Number(value.clone())
+    }
+}
+
 pub struct ExprIter<'a> {
     stack: Vec<&'a Expr>,
 }

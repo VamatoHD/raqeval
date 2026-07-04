@@ -23,16 +23,6 @@ impl Op {
             Op::Exp => (3, Assoc::Right),
         }
     }
-
-    pub fn apply(&self, a: &Rational, b: &Rational) -> Rational {
-        match self {
-            Op::Add => a + b,
-            Op::Sub => a - b,
-            Op::Mul => a * b,
-            Op::Div => a / b,
-            _ => unimplemented!(),
-        }
-    }
 }
 
 impl std::fmt::Display for Op {

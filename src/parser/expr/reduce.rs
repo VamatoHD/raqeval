@@ -1,6 +1,19 @@
 use super::Expr;
 use crate::{Ctx, Error, Rational, lexer::Op};
 
+impl Op {
+    #[inline]
+    pub fn apply(&self, a: &Rational, b: &Rational) -> Result<Expr, Error> {
+        Ok(match self {
+            Op::Add => (a + b).into(),
+            Op::Sub => (a - b).into(),
+            Op::Mul => (a * b).into(),
+            Op::Div => (a / b).into(),
+            Op::Exp => a.pow(b)?,
+        })
+    }
+}
+
 impl Expr {
     pub fn reduce(&self, ctx: &Ctx) -> Result<Expr, Error> {
         Ok(match self {
@@ -11,7 +24,7 @@ impl Expr {
                 use Expr::Number;
 
                 if let (Number(a), Number(b)) = (&lhs, &rhs) {
-                    return Ok(Number(op.apply(a, b)));
+                    return op.apply(a, b);
                 }
 
                 match (op, &lhs, &rhs) {

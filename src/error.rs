@@ -18,6 +18,8 @@ pub enum Error {
     AssignBuiltinFunc(String),
 
     RecursiveFunc(String),
+    Overflow,
+    RootsNotImplemented,
 }
 
 impl std::fmt::Display for Error {
@@ -36,6 +38,8 @@ impl std::fmt::Display for Error {
                 write!(f, "tried assign builtin function: {}", func)
             }
             Error::RecursiveFunc(func) => write!(f, "recursive func: {}", func),
+            Error::Overflow => write!(f, "possible overflow/undeflow"),
+            Error::RootsNotImplemented => write!(f, "roots not implemented"),
         }
     }
 }
