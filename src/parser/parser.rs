@@ -1,4 +1,4 @@
-use crate::{Error, Expr, Func, lexer::*, rat};
+use crate::{Error, Expr, Func, Rational, lexer::*, rat};
 
 fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
     match lexer.next() {
@@ -56,13 +56,21 @@ fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
                 Ok(Expr::Var(s))
             }
         }
-
+        //Unary operator "-"
+        Token::Op(Op::Sub) => {
+            const UNARY_PREC: u8 = Op::Exp.get_info().0 + 1;
+            Ok(Expr::Infix {
+                lhs: Box::new(Rational::zero().into()),
+                op: Op::Sub,
+                rhs: Box::new(compute_expr(lexer, UNARY_PREC)?),
+            })
+        }
         Token::Number(n) => Ok(Expr::Number(n)),
         t => Err(Error::AtomExpected(t)),
     }
 }
 
-fn compute_expr(lexer: &mut Lexer, min_prec: usize) -> Result<Expr, Error> {
+fn compute_expr(lexer: &mut Lexer, min_prec: u8) -> Result<Expr, Error> {
     let mut atom_lhs = compute_atom(lexer)?;
 
     loop {

@@ -46,7 +46,6 @@ impl std::fmt::Display for Expr {
                 //TODO: Ignore base if is equal to 10
                 write!(f, "log({}, {})", base, arg)
             }
-            _ => todo!(),
         }
     }
 }

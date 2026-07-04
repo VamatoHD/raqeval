@@ -16,7 +16,7 @@ pub enum Op {
 }
 
 impl Op {
-    pub fn get_info(&self) -> (usize, Assoc) {
+    pub const fn get_info(&self) -> (u8, Assoc) {
         match self {
             Op::Add | Op::Sub => (1, Assoc::Left),
             Op::Mul | Op::Div => (2, Assoc::Left),
