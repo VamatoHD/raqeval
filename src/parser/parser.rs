@@ -78,20 +78,31 @@ fn compute_expr(lexer: &mut Lexer, min_prec: u8) -> Result<Expr, Error> {
         // - Precedence is lower
         // - No more tokens left
         // - Isn't a binary operation
-        let op = match lexer.peek() {
+        let (op, is_implicit) = match lexer.peek() {
             Token::Op(op) => {
                 let (prec, _) = op.get_info();
                 if prec < min_prec {
                     break;
                 };
-                op.clone()
+                (op.clone(), false)
+            }
+            //If new token triggers a new atom, trigger implicit multiplication
+            Token::LParen | Token::Number(_) | Token::String(_) => {
+                let (prec, _) = Op::Mul.get_info();
+                if prec < min_prec {
+                    break;
+                };
+                (Op::Mul, true)
             }
             Token::Eof => break,
             _ => break,
         };
 
-        //Consume the next token
-        lexer.next();
+        // Consume the next token if its an actual operator
+        // For implicit multiplication, it doesn't exist
+        if !is_implicit {
+            lexer.next();
+        }
 
         let (prec, assoc) = op.get_info();
         let next_min_prec = if assoc == Assoc::Left { prec + 1 } else { prec };
