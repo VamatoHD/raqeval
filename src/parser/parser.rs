@@ -1,4 +1,4 @@
-use crate::{Error, Expr, Func, Rational, lexer::*, rat};
+use crate::{Consts, Error, Expr, Func, Rational, lexer::*, rat};
 
 fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
     match lexer.next() {
@@ -34,21 +34,34 @@ fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
                     lexer.next();
                 }
 
-                match s.as_str() {
-                    "log" if args.len() == 1 => Ok(Expr::Log {
+                match (s.as_str(), args.len()) {
+                    ("log", 1) => Ok(Expr::Log {
                         base: Box::new(Expr::Number(rat!(10))),
                         arg: Box::new(args.into_iter().next().unwrap()),
                     }),
-                    "log" if args.len() == 2 => {
+                    ("log", 2) => {
                         let mut args_iter = args.into_iter();
                         Ok(Expr::Log {
                             base: Box::new(args_iter.next().unwrap()),
                             arg: Box::new(args_iter.next().unwrap()),
                         })
                     }
-                    "log" => Err(Error::InvalidFunc(
-                        "log expects exactly 2 arguments".to_string(),
+                    ("log", _) => Err(Error::InvalidFunc(
+                        "log expects 1 or 2 arguments".to_string(),
                     )),
+
+                    ("ln", 1) => Ok(Expr::Log {
+                        base: Box::new(Expr::Const(Consts::E)),
+                        arg: Box::new(args.into_iter().next().unwrap()),
+                    }),
+                    ("ln", _) => Err(Error::InvalidFunc("ln expects 1 argument".to_string())),
+
+                    ("exp", 1) => Ok(Expr::Infix {
+                        lhs: Box::new(Expr::Const(Consts::E)),
+                        op: Op::Exp,
+                        rhs: Box::new(args.into_iter().next().unwrap()),
+                    }),
+                    ("exp", _) => Err(Error::InvalidFunc("exp expects 1 argument".to_string())),
                     _ => Ok(Expr::Call { func: s, args }),
                 }
             } else {
