@@ -29,7 +29,13 @@ impl std::fmt::Display for Expr {
             Expr::Const(c) => write!(f, "{}", c),
             Expr::Number(v) => write!(f, "{}", v),
             Expr::Var(v) => write!(f, "{}", v),
-            Expr::Infix { lhs, op, rhs } => write!(f, "({} {} {})", lhs, op, rhs),
+            Expr::Infix { lhs, op, rhs } => {
+                use Expr::Number;
+                match (op, lhs.as_ref(), rhs.as_ref()) {
+                    (Op::Sub, Number(a), v) if a == 0u8 => write!(f, "(-{})", rhs),
+                    _ => write!(f, "({} {} {})", lhs, op, rhs),
+                }
+            }
             Expr::Call { func, args } => {
                 if args.len() == 0 {
                     write!(f, "{}()", func)
@@ -42,10 +48,15 @@ impl std::fmt::Display for Expr {
                     write!(f, "{}({})", func, concat)
                 }
             }
-            Expr::Log { base, arg } => {
-                //TODO: Ignore base if is equal to 10
-                write!(f, "log({}, {})", base, arg)
-            }
+            Expr::Log { base, arg } => match base.as_ref() {
+                Expr::Number(a) if a == 10u8 => {
+                    write!(f, "log({})", arg)
+                }
+                Expr::Const(Consts::E) => {
+                    write!(f, "ln({})", arg)
+                }
+                _ => write!(f, "log({}, {})", base, arg),
+            },
         }
     }
 }

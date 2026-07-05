@@ -70,29 +70,32 @@ impl Expr {
             }
 
             // Logarithms
-            Expr::Log { base, arg } => match arg.reduce(ctx)? {
-                Expr::Infix { lhs, op, rhs } if matches!(op, Op::Mul | Op::Div) => {
-                    // Both lhs and rhs should be reduced, as arg is reduced
-                    let new_op = if op == Op::Mul { Op::Add } else { Op::Sub };
-                    Expr::Infix {
-                        lhs: Box::new(Expr::Log {
-                            base: base.clone(),
-                            arg: lhs.clone(),
-                        }),
-                        op: new_op,
-                        rhs: Box::new(Expr::Log {
-                            base: base.clone(),
-                            arg: rhs.clone(),
-                        }),
+            Expr::Log { base, arg } => {
+                let reduced_base = Box::new(base.reduce(ctx)?);
+                match arg.reduce(ctx)? {
+                    Expr::Infix { lhs, op, rhs } if matches!(op, Op::Mul | Op::Div) => {
+                        // Both lhs and rhs should be reduced, as arg is reduced
+                        let new_op = if op == Op::Mul { Op::Add } else { Op::Sub };
+                        dbg!(Expr::Infix {
+                            lhs: Box::new(Expr::Log {
+                                base: reduced_base.clone(),
+                                arg: lhs.clone(),
+                            }),
+                            op: new_op,
+                            rhs: Box::new(Expr::Log {
+                                base: reduced_base,
+                                arg: rhs.clone(),
+                            }),
+                        })
+                        .reduce(ctx)?
                     }
-                    .reduce(ctx)?
+                    Expr::Number(n) if n == 1u128 => Expr::Number(Rational::zero()),
+                    reduced => Expr::Log {
+                        base: reduced_base,
+                        arg: Box::new(reduced),
+                    },
                 }
-                Expr::Number(n) if n == 1u128 => Expr::Number(Rational::zero()),
-                reduced => Expr::Log {
-                    base: base.clone(),
-                    arg: Box::new(reduced),
-                },
-            },
+            }
 
             // If was inside a function, it would have been replaced by now
             expr @ Expr::Var(name) => ctx
