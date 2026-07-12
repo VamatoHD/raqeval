@@ -1,10 +1,10 @@
-use crate::{Expr, Func};
+use crate::{Error, Expr, Func};
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Ctx {
     funcs: HashMap<String, Func>,
-    globals: HashMap<String, Option<Expr>>,
+    globals: HashMap<String, Expr>,
 }
 
 impl Ctx {
@@ -27,12 +27,18 @@ impl Ctx {
         self.funcs.iter().map(|(name, _)| name.as_str()).collect()
     }
 
-    pub fn add_global(&mut self, var: &str, expr: Option<Expr>) -> () {
-        self.globals.insert(var.to_string(), expr);
+    pub fn add_global(&mut self, var: &str, expr: Expr) -> Result<(), Error> {
+        let reduced = expr.reduce(self)?;
+        if reduced.is_numeric(Some(self)) {
+            self.globals.insert(var.to_string(), reduced);
+            Ok(())
+        } else {
+            Err(Error::GlobalNotNumeric)
+        }
     }
 
     pub fn get_global(&self, name: &str) -> Option<&Expr> {
-        self.globals.get(name).and_then(|inner| inner.as_ref())
+        self.globals.get(name)
     }
 
     pub fn get_global_names(&self) -> Vec<&str> {

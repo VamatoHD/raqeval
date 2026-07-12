@@ -20,6 +20,7 @@ pub enum Error {
     RecursiveFunc(String),
     Overflow,
     RootsNotImplemented,
+    GlobalNotNumeric,
 }
 
 impl std::fmt::Display for Error {
@@ -40,6 +41,7 @@ impl std::fmt::Display for Error {
             Error::RecursiveFunc(func) => write!(f, "recursive func: {}", func),
             Error::Overflow => write!(f, "possible overflow/undeflow"),
             Error::RootsNotImplemented => write!(f, "roots not implemented"),
+            Error::GlobalNotNumeric => write!(f, "global must be numeric"),
         }
     }
 }

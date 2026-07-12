@@ -75,9 +75,11 @@ impl Expr {
     pub fn is_numeric(&self, ctx: Option<&Ctx>) -> bool {
         match self {
             Expr::Const(_) | Expr::Number(_) => true,
-            Expr::Var(_) => false, // TODO: Update when adding global variables
+            // Every global in ctx is numeric
+            Expr::Var(name) => ctx.is_some_and(|v| v.get_global(name).is_some()),
             Expr::Infix { lhs, rhs, .. } => lhs.is_numeric(ctx) && rhs.is_numeric(ctx),
             Expr::Log { base, arg } => base.is_numeric(ctx) && arg.is_numeric(ctx),
+            //TODO: check function to see if has any global
             Expr::Call { func, args } => args.iter().all(|arg| arg.is_numeric(ctx)),
         }
     }
