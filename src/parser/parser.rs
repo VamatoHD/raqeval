@@ -62,6 +62,21 @@ fn compute_atom(lexer: &mut Lexer) -> Result<Expr, Error> {
                         rhs: Box::new(args.into_iter().next().unwrap()),
                     }),
                     ("exp", _) => Err(Error::InvalidFunc("exp expects 1 argument".to_string())),
+
+                    ("sqrt", 1) => Ok(Expr::Infix {
+                        lhs: Box::new(args.into_iter().next().unwrap()),
+                        op: Op::Exp,
+                        rhs: Box::new(Expr::Number(rat!(1 / 2))),
+                    }),
+                    ("sqrt", _) => Err(Error::InvalidFunc("sqrt expects 1 argument".to_string())),
+
+                    ("cbrt", 1) => Ok(Expr::Infix {
+                        lhs: Box::new(args.into_iter().next().unwrap()),
+                        op: Op::Exp,
+                        rhs: Box::new(Expr::Number(rat!(1 / 3))),
+                    }),
+                    ("cbrt", _) => Err(Error::InvalidFunc("cbrt expects 1 argument".to_string())),
+
                     _ => Ok(Expr::Call { func: s, args }),
                 }
             } else {
