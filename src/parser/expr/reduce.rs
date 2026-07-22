@@ -73,20 +73,36 @@ impl Expr {
             Expr::Log { base, arg } => {
                 let reduced_base = Box::new(base.reduce(ctx)?);
                 match arg.reduce(ctx)? {
-                    Expr::Infix { lhs, op, rhs } if matches!(op, Op::Mul | Op::Div) => {
-                        // Both lhs and rhs should be reduced, as arg is reduced
+                    Expr::Infix { lhs: a, op, rhs: b } if matches!(op, Op::Mul | Op::Div) => {
+                        // Both a (lhs) and b (rhs) should be reduced, as arg is reduced
+                        // log(a*b) = log(a) + log(b)
+                        // log(a/b) = log(a) - log(b)
                         let new_op = if op == Op::Mul { Op::Add } else { Op::Sub };
-                        dbg!(Expr::Infix {
+                        Expr::Infix {
                             lhs: Box::new(Expr::Log {
                                 base: reduced_base.clone(),
-                                arg: lhs.clone(),
+                                arg: a.clone(),
                             }),
                             op: new_op,
                             rhs: Box::new(Expr::Log {
                                 base: reduced_base,
-                                arg: rhs.clone(),
+                                arg: b.clone(),
                             }),
-                        })
+                        }
+                        .reduce(ctx)?
+                    }
+                    Expr::Infix { lhs: a, op, rhs: b } if matches!(op, Op::Exp) => {
+                        // Both a (lhs) and b (rhs) should be reduced, as arg is reduced
+                        // log(a^b) = b * log(a)
+                        // TODO: Actual expression is log(a^b) = b * log(|a|) if b is even
+                        Expr::Infix {
+                            lhs: b.clone(),
+                            op: Op::Mul,
+                            rhs: Box::new(Expr::Log {
+                                base: reduced_base,
+                                arg: a.clone(),
+                            }),
+                        }
                         .reduce(ctx)?
                     }
                     Expr::Number(n) if n == 1u128 => Expr::Number(Rational::zero()),
