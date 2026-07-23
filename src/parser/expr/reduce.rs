@@ -28,24 +28,41 @@ impl Expr {
                 }
 
                 match (op, &lhs, &rhs) {
-                    //Left size is zero
-                    (Op::Add, Number(a), v) if a == 0u8 => return Ok(v.clone()),
-                    (Op::Mul | Op::Div, Number(a), _) if a == 0u8 => {
-                        return Ok(Number(Rational::zero()));
-                    }
+                    // Ignore some cases:
+                    // 0 - b = -b (No unary support as of now)
+                    (Op::Sub, Number(a), _) if a == 0u8 => {}
 
-                    //Right side is zero
-                    (Op::Add | Op::Sub, v, Number(a)) if a == 0u8 => return Ok(v.clone()),
+                    // 0 + b = b + 0 = b
+                    (Op::Add, Number(a), b) if a == 0u8 => return Ok(b.clone()),
+                    (Op::Add, b, Number(a)) if a == 0u8 => return Ok(b.clone()),
+
+                    // b - 0 = b
+                    (Op::Sub, b, Number(a)) if a == 0u8 => return Ok(b.clone()),
+
+                    // 0 * b = b * 0 = 0
+                    (Op::Mul, Number(a), _) if a == 0u8 => return Ok(Number(Rational::zero())),
                     (Op::Mul, _, Number(a)) if a == 0u8 => return Ok(Number(Rational::zero())),
+
+                    // b / 0 = Error
                     (Op::Div, _, Number(a)) if a == 0u8 => return Err(Error::DivisionByZero),
 
-                    // Mul and Div by one
-                    (Op::Mul, Number(a), v) if a == 1u8 => return Ok(v.clone()),
-                    (Op::Mul, v, Number(a)) if a == 1u8 => return Ok(v.clone()),
-                    (Op::Div, v, Number(a)) if a == 1u8 => return Ok(v.clone()),
+                    // 0 / b = 0, error if b = 0
+                    //TODO: Check if denominator is zero
+                    (Op::Div, Number(a), _) if a == 0u8 => {
+                        return unimplemented!();
+                    }
 
-                    //Return default
-                    (Op::Sub, Number(a), _) if a == 0u8 => {}
+                    // 1 * b = b * 1 = b / 1 = b
+                    (Op::Mul, Number(a), b) if a == 1u8 => return Ok(b.clone()),
+                    (Op::Mul | Op::Div, b, Number(a)) if a == 1u8 => return Ok(b.clone()),
+
+                    // b ^ 0 = 1,  1 ^ b = 1
+                    (Op::Exp, b, Number(a)) if a == 0u8 => return Ok(Number(1u8.into())),
+                    (Op::Exp, Number(a), b) if a == 1u8 => return Ok(Number(1u8.into())),
+
+                    // b ^ 1 = b
+                    (Op::Exp, b, Number(a)) if a == 1u8 => return Ok(b.clone()),
+
                     _ => {}
                 }
 
