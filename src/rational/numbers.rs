@@ -5,7 +5,7 @@ macro_rules! impl_unsigned {
         $(
             // Rational == unsigned
             impl PartialEq<$x> for Rational {
-                #[inline]
+                #[inline(always)]
                 fn eq(&self, other: &$x) -> bool {
                     self.num == (*other as u128) && !self.is_neg() && self.is_integer()
                 }
@@ -13,7 +13,7 @@ macro_rules! impl_unsigned {
 
             // &Rational = unsigned
             impl PartialEq<$x> for &Rational {
-                #[inline]
+                #[inline(always)]
                 fn eq(&self, other: &$x) -> bool {
                     // Dereferences &&Rational in order to call other method
                     (*self).eq(other)
@@ -22,7 +22,7 @@ macro_rules! impl_unsigned {
 
             // unsigned = Rational
             impl PartialEq<Rational> for $x {
-                #[inline]
+                #[inline(always)]
                 fn eq(&self, other: &Rational) -> bool {
                     other == self
                 }
@@ -30,9 +30,17 @@ macro_rules! impl_unsigned {
 
             // unsigned = &Rational
             impl PartialEq<&Rational> for $x {
-                #[inline]
+                #[inline(always)]
                 fn eq(&self, other: &&Rational) -> bool {
                     other == self
+                }
+            }
+
+            impl From<$x> for Rational {
+                #[inline(always)]
+                fn from(value: $x) -> Self {
+                    //Silently truncates usize in case it is 256 bits - Fix later
+                    Rational::unwrap_new(value as _, 1, false)
                 }
             }
         )*
