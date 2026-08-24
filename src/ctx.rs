@@ -15,8 +15,12 @@ impl Ctx {
         }
     }
 
-    pub fn add_func(&mut self, func: Func) -> () {
+    pub fn add_func(&mut self, func: Func) -> Result<(), Error> {
+        if func.is_recursive(self) {
+            return Err(Error::RecursiveFunc(func.get_name().to_string()));
+        }
         self.funcs.insert(func.get_name().to_string(), func);
+        Ok(())
     }
 
     pub fn get_func(&self, name: &str) -> Option<&Func> {

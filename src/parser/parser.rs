@@ -163,9 +163,7 @@ pub fn parse_func(input: &str) -> Result<Func, Error> {
     while let Some(token) = lhs_iter.peek() {
         match token {
             Token::String(s) => func_name.push_str(s),
-            Token::Number(n) if n.is_integer() && !n.is_integer() => {
-                func_name.push_str(&n.to_string())
-            }
+            Token::Number(n) if n.is_integer() && !n.is_neg() => func_name.push_str(&n.to_string()),
             Token::LParen => break,
             _ => return Err(Error::InvalidFunc("invalid function name".to_string())),
         }
