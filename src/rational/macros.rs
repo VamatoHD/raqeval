@@ -16,9 +16,8 @@ macro_rules! rat {
     (-$a:literal / $b:literal) => { rat!($a / $b).const_neg() };
     ($a:literal / $b:literal) => { const {
         $crate::Rational::unwrap_new(
-            ($a as i128).unsigned_abs(),
-            ($b as i128).unsigned_abs(),
-            false
+            ($a as i128).unsigned_abs() as i128,
+            ($b as i128).unsigned_abs() as u128,
         )
     }};
 

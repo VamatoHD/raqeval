@@ -7,7 +7,7 @@ macro_rules! impl_unsigned {
             impl PartialEq<$x> for Rational {
                 #[inline(always)]
                 fn eq(&self, other: &$x) -> bool {
-                    self.num == (*other as u128) && !self.is_neg() && self.is_integer()
+                    !self.is_neg() && (self.num as u128) == (*other as u128) && self.is_integer()
                 }
             }
 
@@ -40,7 +40,7 @@ macro_rules! impl_unsigned {
                 #[inline(always)]
                 fn from(value: $x) -> Self {
                     //Silently truncates usize in case it is 256 bits - Fix later
-                    Rational::unwrap_new(value as _, 1, false)
+                    Rational::unwrap_new(value as _, 1)
                 }
             }
         )*

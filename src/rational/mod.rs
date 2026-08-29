@@ -15,14 +15,18 @@ mod macros;
 
 pub(crate) use macros::rat;
 
+#[inline(always)]
+const fn apply_sign(num: i128, neg: bool) -> i128 {
+    let mask = -(neg as i128);
+    (num ^ mask) - mask
+}
+
 #[derive(Debug, Clone)]
 pub struct Rational {
-    //Numerator
-    num: u128,
+    //Numerator - Also stores the sign of the rational number
+    num: i128,
     //Denominator
     den: NonZeroU128,
-    //Negative, must be false if num == 0
-    neg: bool,
 }
 
 impl Rational {
@@ -33,7 +37,6 @@ impl Rational {
             Some(v) => v,
             None => panic!("Is non-zero"),
         },
-        neg: false,
     };
 
     #[inline(always)]
@@ -41,20 +44,15 @@ impl Rational {
         Self::ZERO
     }
 
-    pub fn new(num: u128, den: u128, neg: bool) -> Result<Self, Error> {
-        match (num, den) {
-            (_, 0) => Err(Error::DivisionByZero),
-            (0, _) => Ok(Self::zero()),
-            _ => {
-                let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
-                let mut new = Self { num, den, neg };
-                new.reduce_in_place();
-                Ok(new)
-            }
+    pub fn new(num: i128, den: u128) -> Result<Self, Error> {
+        let den = NonZeroU128::new(den).ok_or(Error::DivisionByZero)?;
+        if num == 0 {
+            return Ok(Self::zero());
         }
+        Ok(Self::const_reduce(Rational { num, den }))
     }
 
-    pub const fn unwrap_new(num: u128, den: u128, neg: bool) -> Self {
+    pub const fn unwrap_new(num: i128, den: u128) -> Self {
         match NonZeroU128::new(den) {
             None => panic!("division by zero"),
             Some(den_nz) => {
@@ -62,9 +60,8 @@ impl Rational {
                     return Self::ZERO;
                 }
                 Self::const_reduce(Rational {
-                    num,
+                    num: num,
                     den: den_nz,
-                    neg,
                 })
             }
         }
@@ -75,13 +72,13 @@ impl Rational {
             return Self::ZERO;
         };
 
-        let num_nz = match NonZeroU128::new(r.num) {
+        let num_nz = match NonZeroU128::new(r.abs_num()) {
             Some(v) => v,
             None => return Self::ZERO,
         };
 
         let div = gcd(num_nz, r.den);
-        r.num = r.num.wrapping_div(div.get());
+        r.num = r.num.wrapping_div(div.get() as i128);
         r.den = match NonZeroU128::new(r.den.get() / div.get()) {
             Some(v) => v,
             None => panic!("den became zero after division by gcd — impossible"),
@@ -91,18 +88,7 @@ impl Rational {
     }
 
     pub fn reduce_in_place(&mut self) -> &mut Self {
-        if self.num == 0 {
-            //SAFETY: 1 is non-zero
-            self.den = NonZeroU128::new(1).unwrap();
-            self.neg = false;
-            return self;
-        }
-        //SAFETY: self.num is non-zero (checked) and so is self.den (non-zero type)
-        let div = gcd(NonZeroU128::new(self.num).unwrap(), self.den);
-
-        self.num /= div;
-        //SAFETY: self.den and div are non-zero
-        self.den = NonZeroU128::new(self.den.get() / div).unwrap();
+        *self = Self::const_reduce(std::mem::replace(self, Self::ZERO));
         self
     }
 
@@ -116,11 +102,12 @@ impl Rational {
         if rhs.num == 0 {
             Err(Error::DivisionByZero)
         } else {
-            let num = self.num * rhs.den.get();
-            let den = self.den.get() * rhs.num;
-            let neg = self.neg ^ rhs.neg;
+            let num_mag = self.abs_num() * rhs.den.get();
+            let den = self.den.get() * rhs.abs_num();
+            let neg = self.is_neg() ^ rhs.is_neg();
 
-            Ok(Self::new(num, den, neg)?)
+            let num: i128 = num_mag.try_into().map_err(|_| Error::Overflow)?;
+            Ok(Self::new(apply_sign(num, neg), den)?)
         }
     }
 
@@ -128,43 +115,45 @@ impl Rational {
         if !other.is_integer() {
             return Err(Error::RootsNotImplemented);
         }
-        let pow: u32 = other.num.try_into().map_err(|_| Error::Overflow)?;
+        let pow: u32 = other.abs_num().try_into().map_err(|_| Error::Overflow)?;
 
-        let new_num = self.num.checked_pow(pow).ok_or_else(|| Error::Overflow)?;
-        let new_den = self
-            .den
-            .get()
-            .checked_pow(pow)
-            .ok_or_else(|| Error::Overflow)?;
+        let new_num = self.abs_num().checked_pow(pow).ok_or(Error::Overflow)?;
+        let new_den = self.den.get().checked_pow(pow).ok_or(Error::Overflow)?;
 
         //Check if self is neg and pow is not even
-        let new_neg = self.neg && !(pow % 2 == 0);
+        let new_neg = self.is_neg() && !(pow % 2 == 0);
 
-        if other.is_neg() {
-            //Invert the new number
-            Rational::new(new_den, new_num, new_neg).map(|r| r.into())
+        let (new_num, new_den) = if other.is_neg() {
+            (new_den, new_num)
         } else {
-            Rational::new(new_num, new_den, new_neg).map(|r| r.into())
-        }
+            (new_num, new_den)
+        };
+
+        let num = apply_sign(new_num.try_into().map_err(|_| Error::Overflow)?, new_neg);
+        Rational::new(num, new_den).map(|r| r.into())
     }
 
     #[inline]
     pub const fn const_neg(self) -> Self {
         Rational {
-            num: self.num,
+            num: -self.num,
             den: self.den,
-            neg: !self.neg && self.num != 0,
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn is_integer(&self) -> bool {
         self.den.get() == 1
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn is_neg(&self) -> bool {
-        self.neg
+        self.num < 0
+    }
+
+    #[inline(always)]
+    pub const fn abs_num(&self) -> u128 {
+        self.num.unsigned_abs()
     }
 }
 
@@ -177,11 +166,9 @@ impl Default for Rational {
 
 impl std::fmt::Display for Rational {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match (self.neg, self.den.get()) {
-            (true, 1) => write!(f, "-{}", self.num),
-            (false, 1) => write!(f, "{}", self.num),
-            (true, den) => write!(f, "-{}/{}", self.num, den),
-            (false, den) => write!(f, "{}/{}", self.num, den),
+        match self.den.get() {
+            1 => write!(f, "{}", self.num),
+            den => write!(f, "{}/{}", self.num, den),
         }
     }
 }
@@ -192,39 +179,22 @@ impl std::ops::Mul for Rational {
         let num = self.num * rhs.num;
         // Since both den are non-zero, this new is also non-zero
         let den = self.den.get() * rhs.den.get();
-        // Xor: Only have sign if only one has
-        let neg = self.neg ^ rhs.neg;
 
         //Safety: den is non-zero
-        Self::new(num, den, neg).unwrap()
+        Self::new(num, den).unwrap()
     }
 }
 
 impl std::ops::Add for Rational {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        let left_num = self.num * rhs.den.get();
-        let right_num = rhs.num * self.den.get();
+        let left_num = self.num * (rhs.den.get() as i128);
+        let right_num = rhs.num * (self.den.get() as i128);
 
         let den = self.den.get() * rhs.den.get();
 
-        let (num, neg) = match (self.neg, rhs.neg) {
-            (false, false) => (left_num + right_num, false),
-            (true, true) => (left_num + right_num, true),
-            (lhs, rhs) => {
-                // Either lhs or rhs are true (but not both)
-                // Therefore, subtract the bigger for the smaller
-                // And negate if the bigger was the negative
-                if left_num > right_num {
-                    (left_num - right_num, lhs)
-                } else {
-                    (right_num - left_num, rhs)
-                }
-            }
-        };
-
         //Safety: den is non-zero
-        Self::new(num, den, neg).unwrap()
+        Self::new(left_num + right_num, den).unwrap()
     }
 }
 
@@ -261,12 +231,11 @@ impl std::ops::Div for Rational {
 
 impl PartialEq for Rational {
     fn eq(&self, other: &Self) -> bool {
-        (self.num == 0 && other.num == 0)
-            || (self.neg == other.neg && {
-                let a = self.reduce();
-                let b = other.reduce();
-                a.num == b.num && a.den == b.den
-            })
+        (self.num == 0 && other.num == 0) || {
+            let a = self.reduce();
+            let b = other.reduce();
+            a.num == b.num && a.den == b.den
+        }
     }
 }
 
@@ -295,15 +264,9 @@ mod tests {
     fn neg_test() {
         assert_eq!(rat!(0), -rat!(0));
         assert_eq!(rat!(-1), -rat!(1));
-        assert_eq!(
-            Rational::unwrap_new(1, 1, true),
-            -Rational::unwrap_new(1, 1, false),
-        );
-        assert_ne!(
-            Rational::unwrap_new(1, 1, true),
-            -Rational::unwrap_new(1, 1, true)
-        );
-        assert_eq!({ -Rational::zero() }.neg, false);
+        assert_eq!(Rational::unwrap_new(-1, 1), -Rational::unwrap_new(1, 1),);
+        assert_ne!(Rational::unwrap_new(-1, 1), -Rational::unwrap_new(-1, 1));
+        assert_eq!({ -Rational::zero() }.is_neg(), false);
     }
 
     #[test]
@@ -359,8 +322,8 @@ mod tests {
 
     #[test]
     fn create_test() {
-        assert_eq!(Rational::new(0, 1, true).unwrap(), rat!(0));
-        Rational::new(0, 0, false).expect_err("Should be division by zero");
+        assert_eq!(Rational::new(-0, 1).unwrap(), rat!(0));
+        Rational::new(0, 0).expect_err("Should be division by zero");
     }
 
     #[test]
@@ -377,5 +340,33 @@ mod tests {
         assert_eq!(rat!(3 / 2).is_integer(), false);
         assert_eq!(rat!(1 / 3).is_integer(), false);
         assert_eq!(rat!(4 / 12).is_integer(), false);
+    }
+}
+
+#[cfg(test)]
+mod apply_sign_test {
+    use super::apply_sign;
+
+    #[test]
+    fn positive_to_positive() {
+        assert_eq!(apply_sign(0, false), 0);
+        assert_eq!(apply_sign(1, false), 1);
+        assert_eq!(apply_sign(123, false), 123);
+        assert_eq!(apply_sign(i128::MAX, false), i128::MAX);
+    }
+
+    #[test]
+    fn negative_to_negative() {
+        assert_eq!(apply_sign(0, true), 0);
+        assert_eq!(apply_sign(1, true), -1);
+        assert_eq!(apply_sign(123, true), -123);
+        assert_eq!(apply_sign(i128::MAX, true), -i128::MAX);
+    }
+
+    #[test]
+    fn zero_stays() {
+        assert_eq!(apply_sign(0, false), 0);
+        assert_eq!(apply_sign(0, true), 0);
+        assert_eq!(apply_sign(0, true), apply_sign(0, false));
     }
 }
