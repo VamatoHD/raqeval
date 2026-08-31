@@ -199,7 +199,7 @@ fn parse_number(str: &str, index: &mut usize) -> Result<Rational, Error> {
     }
 
     //Safety: den is non-zero
-    Ok(Rational::new(num.expect("Number not found"), den, false)?)
+    Ok(Rational::new(num.expect("Number not found") as _, den)?)
 }
 
 fn next_segment_in(str: &str, index: &mut usize, itens: &[&str]) -> Option<String> {
