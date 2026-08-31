@@ -72,3 +72,11 @@ impl Func {
         dfs(self.get_expr(), ctx, &mut stack)
     }
 }
+
+impl std::str::FromStr for Func {
+    type Err = crate::Error;
+
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        crate::parse_func(str)
+    }
+}

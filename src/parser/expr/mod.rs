@@ -124,6 +124,14 @@ impl<'a> Iterator for ExprIter<'a> {
     }
 }
 
+impl std::str::FromStr for Expr {
+    type Err = crate::Error;
+
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        crate::parse(str)
+    }
+}
+
 impl<'a> IntoIterator for &'a Expr {
     type Item = &'a Expr;
     type IntoIter = ExprIter<'a>;
